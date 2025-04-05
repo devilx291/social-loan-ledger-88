@@ -6,58 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PiggyBank } from "lucide-react";
+import { PiggyBank, Lock, Mail } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 const Login = () => {
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState(1);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   
-  const { login, requestOtp } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const handleRequestOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    
-    // Basic validation
-    if (!phoneNumber || phoneNumber.length < 10) {
-      setError("Please enter a valid phone number");
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      await requestOtp(phoneNumber);
-      setStep(2);
-    } catch (err: any) {
-      setError(err.message || "Failed to send OTP. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     
-    if (!otp || otp.length < 6) {
-      setError("Please enter a valid OTP");
+    if (!email || !password) {
+      setError("Please enter both email and password");
       return;
     }
     
     setIsLoading(true);
     
     try {
-      await login(phoneNumber, otp);
+      await login(email, password);
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Login failed. Please check your OTP and try again.");
+      setError(err.message || "Login failed. Please check your credentials and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -76,13 +53,11 @@ const Login = () => {
           </p>
         </div>
         
-        <Card>
+        <Card className="shadow-lg border-none">
           <CardHeader>
             <CardTitle>Log in</CardTitle>
             <CardDescription>
-              {step === 1 
-                ? "Enter your phone number to receive a one-time password" 
-                : "Enter the OTP sent to your phone"}
+              Enter your credentials to access your account
             </CardDescription>
           </CardHeader>
           
@@ -93,77 +68,61 @@ const Login = () => {
               </div>
             )}
             
-            {step === 1 ? (
-              <form onSubmit={handleRequestOtp}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
+            <form onSubmit={handleLogin}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Mail className="h-4 w-4 text-gray-400" />
+                    </div>
                     <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="Enter your phone number"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      disabled={isLoading}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Format: +1XXXXXXXXXX (include country code)
-                    </p>
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Sending..." : "Send OTP"}
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleLogin}>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="otp">One-Time Password</Label>
-                    <Input
-                      id="otp"
-                      type="text"
-                      placeholder="Enter OTP"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      maxLength={6}
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
                       disabled={isLoading}
                       required
                     />
                   </div>
-                  
-                  <div className="text-sm">
-                    <button 
-                      type="button" 
-                      className="text-brand-primary hover:underline"
-                      onClick={() => setStep(1)}
-                    >
-                      Use a different phone number
-                    </button>
-                  </div>
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Logging in..." : "Log in"}
-                  </Button>
                 </div>
-              </form>
-            )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Logging in..." : "Log in"}
+                </Button>
+              </div>
+            </form>
           </CardContent>
           
           <CardFooter>
             <p className="text-sm text-center w-full">
               Don't have an account?{" "}
-              <Link to="/register" className="text-brand-primary hover:underline">
+              <Link to="/register" className="text-brand-primary hover:underline font-medium">
                 Register
               </Link>
             </p>

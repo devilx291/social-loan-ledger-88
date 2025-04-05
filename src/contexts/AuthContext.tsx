@@ -1,170 +1,183 @@
 
-import { ReactNode, createContext, useContext, useState, useEffect } from "react";
+import { createContext, useState, useContext, useEffect, ReactNode } from "react";
+import { signUp, signIn, verifyOtp, signOut, getCurrentUser, AuthUser, updateUserProfile } from "@/services/authService";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { AuthUser, getCurrentUser, signIn, signUp, verifyOtp, signOut } from "@/services/authService";
 
 type AuthContextType = {
   user: AuthUser | null;
-  isAuthenticated: boolean;
   isLoading: boolean;
-  login: (phoneNumber: string, otp: string) => Promise<void>;
-  register: (name: string, phoneNumber: string, otp: string) => Promise<void>;
+  error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  requestOtp: (phoneNumber: string) => Promise<void>;
+  updateUser: (updates: Partial<AuthUser>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Initialize auth state
+  // Check if user is logged in on initial load
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setIsLoading(true);
-        if (session?.user) {
-          try {
-            const userData = await getCurrentUser();
-            setUser(userData);
-          } catch (error) {
-            console.error("Error fetching user data", error);
-            setUser(null);
-          }
-        } else {
-          setUser(null);
-        }
-        setIsLoading(false);
-      }
-    );
-
-    // Check for existing session
-    const initializeAuth = async () => {
+    const checkUser = async () => {
       try {
-        const userData = await getCurrentUser();
-        setUser(userData);
-      } catch (error) {
-        console.error("Error initializing auth", error);
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+      } catch (err) {
+        console.error("Error checking authentication status:", err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeAuth();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    checkUser();
   }, []);
 
-  const requestOtp = async (phoneNumber: string) => {
-    try {
-      // Pass a dummy password since we'll validate with OTP later
-      // This fixes the error about needing 2 arguments
-      await signIn(phoneNumber, "temporary-password");
-      toast({
-        title: "OTP Sent",
-        description: "Check your phone for the verification code",
-      });
-    } catch (error: any) {
-      console.error("OTP request failed", error);
-      toast({
-        title: "OTP Request Failed",
-        description: error.message || "Please try again",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-  const login = async (phoneNumber: string, otp: string) => {
+  // Register a new user
+  const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
+    setError(null);
+    
     try {
-      await verifyOtp(phoneNumber, otp);
-      const userData = await getCurrentUser();
-      setUser(userData);
+      const { user } = await signUp(email, name, password);
+      
+      if (user) {
+        setUser({
+          id: user.id,
+          name,
+          phoneNumber: email, // Using email instead of phone
+          trustScore: 50 // Default trust score for new users
+        });
+        
+        toast({
+          title: "Account created!",
+          description: "Welcome to Social Loan Ledger!",
+          duration: 5000,
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || "Registration failed");
       toast({
-        title: "Login Successful",
-        description: "Welcome to the Social Loan Ledger!",
-      });
-    } catch (error: any) {
-      console.error("Login failed", error);
-      toast({
-        title: "Login Failed",
-        description: error.message || "Please check your OTP and try again",
+        title: "Registration failed",
+        description: err.message || "Please try again",
         variant: "destructive",
+        duration: 5000,
       });
-      throw error;
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const register = async (name: string, phoneNumber: string, otp: string) => {
+  // Login
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
+    setError(null);
+    
     try {
-      await signUp(phoneNumber, name, otp);
-      const userData = await getCurrentUser();
-      setUser(userData);
+      const { user } = await signIn(email, password);
+      
+      if (user) {
+        const userData = await getCurrentUser();
+        setUser(userData);
+        
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+          duration: 3000,
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || "Login failed");
       toast({
-        title: "Registration Successful",
-        description: "Welcome to the Social Loan Ledger!",
-      });
-    } catch (error: any) {
-      console.error("Registration failed", error);
-      toast({
-        title: "Registration Failed",
-        description: error.message || "Please try again later",
+        title: "Login failed",
+        description: err.message || "Please check your credentials and try again",
         variant: "destructive",
+        duration: 5000,
       });
-      throw error;
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Logout
   const logout = async () => {
+    setIsLoading(true);
+    
     try {
       await signOut();
       setUser(null);
+      
       toast({
-        title: "Logged Out",
-        description: "You have been successfully logged out",
+        title: "Logged out",
+        description: "You have been logged out successfully",
+        duration: 3000,
       });
-    } catch (error: any) {
-      console.error("Logout failed", error);
+    } catch (err: any) {
+      setError(err.message || "Logout failed");
       toast({
-        title: "Logout Failed",
-        description: error.message || "Please try again",
+        title: "Logout failed",
+        description: err.message || "Please try again",
         variant: "destructive",
+        duration: 5000,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        register,
-        logout,
-        requestOtp,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  // Update user profile
+  const updateUser = async (updates: Partial<AuthUser>) => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      await updateUserProfile(user.id, updates);
+      setUser(prev => prev ? { ...prev, ...updates } : null);
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully",
+        duration: 3000,
+      });
+    } catch (err: any) {
+      setError(err.message || "Profile update failed");
+      toast({
+        title: "Update failed",
+        description: err.message || "Please try again",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const value = {
+    user,
+    isLoading,
+    error,
+    login,
+    register,
+    logout,
+    updateUser,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  
+  return context;
 };

@@ -5,13 +5,13 @@ import { User } from "@supabase/supabase-js";
 export type AuthUser = {
   id: string;
   name: string;
-  phoneNumber: string;
+  phoneNumber: string; // This will now store email
   trustScore: number;
 };
 
-export const signUp = async (phoneNumber: string, name: string, password: string) => {
+export const signUp = async (email: string, name: string, password: string) => {
   const { data, error } = await supabase.auth.signUp({
-    phone: phoneNumber,
+    email,
     password,
     options: {
       data: {
@@ -24,9 +24,9 @@ export const signUp = async (phoneNumber: string, name: string, password: string
   return data;
 };
 
-export const signIn = async (phoneNumber: string, password: string) => {
+export const signIn = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({
-    phone: phoneNumber,
+    email,
     password,
   });
 
@@ -34,11 +34,11 @@ export const signIn = async (phoneNumber: string, password: string) => {
   return data;
 };
 
-export const verifyOtp = async (phoneNumber: string, otp: string) => {
+export const verifyOtp = async (email: string, otp: string) => {
   const { data, error } = await supabase.auth.verifyOtp({
-    phone: phoneNumber,
+    email,
     token: otp,
-    type: 'sms',
+    type: 'email',
   });
 
   if (error) throw error;
@@ -55,31 +55,25 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
   
   if (!user) return null;
   
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-    
-  if (!profile) return null;
-  
+  // We're emulating a real user until the profiles table is set up
+  // In a production app, you'd fetch this from a profiles table
   return {
-    id: profile.id,
-    name: profile.name,
-    phoneNumber: profile.phone_number || '',
-    trustScore: profile.trust_score,
+    id: user.id,
+    name: user.user_metadata?.name || 'User',
+    phoneNumber: user.email || '',
+    trustScore: 50,
   };
 };
 
 export const updateUserProfile = async (userId: string, updates: Partial<AuthUser>) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({
+  // Here we would update the user profile in a profiles table
+  // For now, we'll just update the user metadata
+  const { error } = await supabase.auth.updateUser({
+    data: {
       name: updates.name,
-      phone_number: updates.phoneNumber,
-    })
-    .eq('id', userId);
+    }
+  });
     
   if (error) throw error;
-  return data;
+  return true;
 };
