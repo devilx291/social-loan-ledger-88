@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateUserTrustScore } from "@/services/authService";
+import { Progress } from "@/components/ui/progress";
 
 // Define question sections and their weights
 const sections = {
@@ -58,7 +59,7 @@ const questions = [
   { text: "I actively track and review my credit transactions.", reverse: false },
   { text: "I understand the long-term consequences of failing to meet my financial obligations.", reverse: false },
   
-  // Validity checks (not shown to user in this implementation)
+  // Validity checks - these are used internally but not shown to the user
   { text: "I believe that lying is never acceptable, even if it might benefit me.", reverse: false },
   { text: "I sometimes exaggerate my positive qualities to impress others.", reverse: true },
   { text: "I am willing to say things that might not be entirely true if it makes me seem more trustworthy.", reverse: true },
@@ -76,11 +77,11 @@ const selfRatingMap = {
   "Excellent": 4
 };
 
-// Pairs for consistency check
+// Pairs for consistency check (these are indices in the responses array)
 const consistencyPairs = [
-  [8, 23], // Q9 vs Q24
-  [11, 26], // Q12 vs Q27
-  [4, 27]  // Q5 vs Q28
+  [8, 23], // "I always tell the truth" vs "Lying is never acceptable"
+  [11, 26], // "Consider how financial decisions affect others" vs "Consider how actions impact others"
+  [4, 27]  // "Comfortable with calculated risks" vs "Comfortable with calculated risks in financial matters"
 ];
 
 const CreditAssessment = () => {
@@ -91,7 +92,7 @@ const CreditAssessment = () => {
   // Only show first 23 questions to users (index 0-22)
   const visibleQuestions = questions.slice(0, 23);
   
-  // Initialize responses array with nulls
+  // Initialize responses array with nulls for all questions (including hidden validity checks)
   const [responses, setResponses] = useState<(number | string | null)[]>(Array(questions.length).fill(null));
   const [currentSection, setCurrentSection] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -104,6 +105,19 @@ const CreditAssessment = () => {
     setResponses(prev => {
       const newResponses = [...prev];
       newResponses[questionIndex] = value;
+      
+      // For consistency checking questions, automatically fill the corresponding validity question
+      if (questionIndex === 8) {
+        // If answering Q9, copy to Q24
+        newResponses[23] = value;
+      } else if (questionIndex === 11) {
+        // If answering Q12, copy to Q27
+        newResponses[26] = value;
+      } else if (questionIndex === 4) {
+        // If answering Q5, copy to Q28
+        newResponses[27] = value;
+      }
+      
       return newResponses;
     });
   };
@@ -198,8 +212,11 @@ const CreditAssessment = () => {
     let inconsistency = 0;
     
     for (const [q1, q2] of consistencyPairs) {
-      const diff = Math.abs((responses[q1] as number) - (responses[q2] as number));
-      inconsistency += diff;
+      // Make sure both responses exist and are numbers
+      if (typeof responses[q1] === 'number' && typeof responses[q2] === 'number') {
+        const diff = Math.abs((responses[q1] as number) - (responses[q2] as number));
+        inconsistency += diff;
+      }
     }
     
     return inconsistency;
@@ -216,13 +233,15 @@ const CreditAssessment = () => {
     
     // Calculate average for non-validity questions
     for (let i = 0; i < 23; i++) { // First 23 questions
-      if (i === 20) { // Self-rating question
-        const stringResponse = responses[i] as string;
-        total += selfRatingMap[stringResponse as keyof typeof selfRatingMap] || 0;
-      } else {
-        total += responses[i] as number;
+      if (responses[i] !== null) {
+        if (i === 20) { // Self-rating question
+          const stringResponse = responses[i] as string;
+          total += selfRatingMap[stringResponse as keyof typeof selfRatingMap] || 0;
+        } else if (typeof responses[i] === 'number') {
+          total += responses[i] as number;
+        }
+        count += 1;
       }
-      count += 1;
     }
     
     return count > 0 ? total / count : 0;
@@ -239,10 +258,16 @@ const CreditAssessment = () => {
     
     try {
       const compositeScore = computeCompositeScore();
+      console.log("Composite score:", compositeScore);
+      
       const inconsistencyIndex = computeInconsistencyIndex();
+      console.log("Inconsistency index:", inconsistencyIndex);
+      
       const avgNonValidity = checkSocialDesirabilityBias();
+      console.log("Average non-validity:", avgNonValidity);
       
       let adjusted = adjustedFinalScore(compositeScore, inconsistencyIndex);
+      console.log("Adjusted score before thresholds:", adjusted);
       
       // Define thresholds
       const inconsistencyThreshold = 3;
@@ -250,14 +275,17 @@ const CreditAssessment = () => {
       
       // If either threshold is exceeded, reduce the score
       if (inconsistencyIndex > inconsistencyThreshold || avgNonValidity > socialDesirabilityThreshold) {
+        console.log("Thresholds exceeded, capping score at 50");
         adjusted = Math.min(adjusted, 50); // Cap at 50 instead of 2 for more reasonable trust score
       }
       
       const trustScore = mapScoreToTrustScore(adjusted);
+      console.log("Final trust score:", trustScore);
       setFinalScore(trustScore);
       
       // Update user's trust score in the database
       if (user) {
+        console.log("Updating user trust score for user ID:", user.id);
         await updateUserTrustScore(user.id, trustScore);
         
         // Update local user state
@@ -269,6 +297,13 @@ const CreditAssessment = () => {
         toast({
           title: "Trust Score Updated",
           description: `Your new trust score is ${trustScore}.`,
+        });
+      } else {
+        console.error("User is null, cannot update trust score");
+        toast({
+          title: "Error",
+          description: "User not found. Please log in again.",
+          variant: "destructive",
         });
       }
       
@@ -354,9 +389,10 @@ const CreditAssessment = () => {
     <div className="text-center py-8 space-y-6">
       <h2 className="text-2xl font-bold">Assessment Complete</h2>
       <div className="flex flex-col items-center gap-4">
-        <div className="w-40 h-40 rounded-full bg-muted flex items-center justify-center">
+        <div className="w-40 h-40 rounded-full border-4 border-primary flex items-center justify-center">
           <span className="text-4xl font-bold">{finalScore}</span>
         </div>
+        <Progress value={finalScore} className="w-64 h-2" />
         <p className="text-lg">Your new trust score has been updated.</p>
         <Button onClick={() => navigate("/dashboard")} className="mt-4">
           Return to Dashboard

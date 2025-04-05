@@ -5,7 +5,7 @@ import { User } from "@supabase/supabase-js";
 export type AuthUser = {
   id: string;
   name: string;
-  phoneNumber: string; // This will now store email
+  phoneNumber: string; // This will store email
   trustScore: number;
 };
 
@@ -44,13 +44,29 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
   
   if (!user) return null;
   
-  // We're emulating a real user until the profiles table is set up
-  // In a production app, you'd fetch this from a profiles table
+  // Fetch the profile data from the profiles table
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+    
+  if (error) {
+    console.error("Error fetching profile:", error);
+    // Fallback to user metadata if profile fetch fails
+    return {
+      id: user.id,
+      name: user.user_metadata?.name || 'User',
+      phoneNumber: user.email || '',
+      trustScore: 50,
+    };
+  }
+  
   return {
     id: user.id,
-    name: user.user_metadata?.name || 'User',
+    name: profile.name || user.user_metadata?.name || 'User',
     phoneNumber: user.email || '',
-    trustScore: 50,
+    trustScore: profile.trust_score || 50,
   };
 };
 
@@ -67,14 +83,39 @@ export const updateUserProfile = async (userId: string, updates: Partial<AuthUse
   return true;
 };
 
-// New function to update a user's trust score
+// Updated function to update a user's trust score
 export const updateUserTrustScore = async (userId: string, trustScore: number) => {
-  // Call the RPC function to update trust score
-  const { error } = await supabase.rpc('update_trust_score', {
-    user_id: userId,
-    score_change: trustScore - 50 // Assuming 50 is the base score, adjust by difference
-  });
+  try {
+    // First, make sure the score is within valid range
+    const boundedScore = Math.max(0, Math.min(100, trustScore));
+    
+    // Call the RPC function to update trust score
+    const { error } = await supabase.rpc('update_trust_score', {
+      user_id: userId,
+      score_change: boundedScore - 50 // Assuming 50 is the base score, adjust by difference
+    });
 
-  if (error) throw error;
-  return true;
+    if (error) {
+      console.error("Error updating trust score:", error);
+      throw error;
+    }
+    
+    // Verify the update by fetching the updated profile
+    const { data, error: fetchError } = await supabase
+      .from('profiles')
+      .select('trust_score')
+      .eq('id', userId)
+      .single();
+      
+    if (fetchError) {
+      console.error("Error fetching updated profile:", fetchError);
+    } else {
+      console.log("Updated trust score:", data.trust_score);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Failed to update trust score:", error);
+    throw error;
+  }
 };
