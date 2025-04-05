@@ -1,5 +1,5 @@
 
-import { Home, PiggyBank, History, LogOut, UserCheck, Menu, FileText, TrendingUp } from "lucide-react";
+import { Home, PiggyBank, History, LogOut, UserCheck, Menu, FileText, TrendingUp, Settings, HelpCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
@@ -106,6 +106,24 @@ export function AppSidebar() {
                   <div className="flex items-center space-x-3 cursor-pointer hover:text-brand-primary transition-colors p-2 rounded-lg">
                     <TrendingUp className="h-5 w-5" />
                     <span className="font-medium">Credit Assessment</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild onClick={() => navigate("/settings")}>
+                  <div className="flex items-center space-x-3 cursor-pointer hover:text-brand-primary transition-colors p-2 rounded-lg">
+                    <Settings className="h-5 w-5" />
+                    <span className="font-medium">Settings</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild onClick={() => navigate("/help-support")}>
+                  <div className="flex items-center space-x-3 cursor-pointer hover:text-brand-primary transition-colors p-2 rounded-lg">
+                    <HelpCircle className="h-5 w-5" />
+                    <span className="font-medium">Help & Support</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
