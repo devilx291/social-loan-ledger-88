@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 
@@ -63,12 +64,16 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     };
   }
   
+  // Check if the profile has an is_verified field, if not default to false
+  // This handles the case where the is_verified column doesn't exist yet in profiles table
+  const isVerified = profile.is_verified !== undefined ? profile.is_verified : false;
+  
   return {
     id: user.id,
     name: profile.name || user.user_metadata?.name || 'User',
     phoneNumber: user.email || '',
     trustScore: profile.trust_score || 50,
-    isVerified: profile.is_verified || false,
+    isVerified: isVerified,
   };
 };
 
@@ -83,13 +88,15 @@ export const updateUserProfile = async (userId: string, updates: Partial<AuthUse
       });
     }
     
+    // Create update object with only fields that exist in the profiles table
+    const profileUpdates: Record<string, any> = {};
+    if (updates.name) profileUpdates.name = updates.name;
+    if (updates.isVerified !== undefined) profileUpdates.is_verified = updates.isVerified;
+    
     // Update profile in the profiles table
     const { error } = await supabase
       .from('profiles')
-      .update({
-        name: updates.name,
-        is_verified: updates.isVerified
-      })
+      .update(profileUpdates)
       .eq('id', userId);
       
     if (error) throw error;
