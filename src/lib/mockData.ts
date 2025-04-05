@@ -3,37 +3,8 @@
 // It will be replaced with actual database implementation later
 
 import { v4 as uuidv4 } from 'uuid';
-
-// Mock User Data
-export interface AuthUser {
-  id: string;
-  name: string;
-  phoneNumber: string;
-  email?: string;
-  password?: string;
-  trustScore: number;
-  isVerified?: boolean;
-  selfieImage?: string | null;
-  createdAt: string;
-}
-
-// Mock Loan Data
-export interface Loan {
-  id: string;
-  amount: number;
-  purpose: string;
-  status: 'pending' | 'approved' | 'repaid' | 'overdue';
-  borrowerId: string;
-  borrowerName: string;
-  borrowerTrustScore: number;
-  lenderId?: string;
-  lenderName?: string;
-  createdAt: string;
-  approvedAt?: string;
-  dueDate?: string;
-  repaidAt?: string;
-  transactionHash?: string;
-}
+import { AuthUser } from '@/services/authService';
+import { Loan } from '@/services/loanService';
 
 // Mock Document Data
 export interface Document {

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -5,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getUserLoans, Loan } from "@/services/loanService";
+import { getUserLoans } from "@/services/loanService";
 import { format } from "date-fns";
 import {
   Tabs,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, AlertCircle } from "lucide-react";
+import { Loan } from "@/services/loanService";
 
 const LoanHistory = () => {
   const { user } = useAuth();
@@ -34,8 +36,15 @@ const LoanHistory = () => {
     queryFn: () => {
       if (!user) return Promise.resolve([]);
       
-      return getUserLoans(user.id, filter === 'all' ? 'all' : 
-                           filter === 'borrowed' ? 'borrower' : 'lender');
+      // Get all loans and filter client-side based on borrower/lender status
+      return getUserLoans(user.id, 'all').then(allLoans => {
+        if (filter === 'borrowed') {
+          return allLoans.filter(loan => loan.borrowerId === user.id);
+        } else if (filter === 'lent') {
+          return allLoans.filter(loan => loan.lenderId === user.id);
+        }
+        return allLoans;
+      });
     },
     enabled: !!user,
   });

@@ -1,8 +1,27 @@
 
-import { mockDataStore, Loan } from "@/lib/mockData";
+import { mockDataStore } from "@/lib/mockData";
 import { v4 as uuidv4 } from 'uuid';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Export the Loan interface
+export interface Loan {
+  id: string;
+  amount: number;
+  purpose: string;
+  status: 'pending' | 'approved' | 'repaid' | 'overdue';
+  borrowerId: string;
+  borrowerName: string;
+  borrowerTrustScore: number;
+  lenderId?: string;
+  lenderName?: string;
+  createdAt: string;
+  approvedAt?: string;
+  dueDate?: string;
+  repaidAt?: string;
+  transactionHash?: string;
+  paidAt?: string;
+}
 
 // Create a new loan request
 export const createLoanRequest = async (borrowerId: string, amount: number, purpose: string) => {
@@ -94,10 +113,12 @@ export const repayLoan = async (loanId: string) => {
     throw new Error("Loan not found");
   }
   
+  const now = new Date().toISOString();
   mockDataStore.loans[loanIndex] = {
     ...mockDataStore.loans[loanIndex],
     status: 'repaid',
-    repaidAt: new Date().toISOString(),
+    repaidAt: now,
+    paidAt: now,
     transactionHash: `0x${Math.random().toString(16).substr(2, 40)}`  // Mock transaction hash
   };
   

@@ -1,8 +1,10 @@
 
-import { supabase } from "@/integrations/supabase/client";
+// This file contains mock data and functions for development purposes
+// In production, these would be replaced by real API calls
+
 import { createLoanRequest } from "@/services/loanService";
 
-// This file contains mock data and functions for development purposes
+// This file contains mock functions for development purposes
 // In production, these would be replaced by real API calls
 
 export const requestLoan = async (userId: string, amount: number, purpose: string) => {

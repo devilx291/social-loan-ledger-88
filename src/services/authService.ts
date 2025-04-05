@@ -1,8 +1,21 @@
 
-import { AuthUser, mockDataStore } from "@/lib/mockData";
+import { mockDataStore } from "@/lib/mockData";
 import { v4 as uuidv4 } from 'uuid';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Export AuthUser interface
+export interface AuthUser {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  email?: string;
+  password?: string;
+  trustScore: number;
+  isVerified?: boolean;
+  selfieImage?: string | null;
+  createdAt: string;
+}
 
 // Sign up a new user
 export const signUp = async (email: string, name: string, password: string) => {
@@ -139,5 +152,32 @@ export const updateUserTrustScore = async (userId: string, trustScore: number) =
   return {
     success: true,
     user: mockDataStore.users[userIndex]
+  };
+};
+
+// Process referral - adding missing function
+export const processReferral = async (referrerId: string, newUserId: string) => {
+  await delay(800);
+  
+  const referrerIndex = mockDataStore.users.findIndex(u => u.id === referrerId);
+  const newUserIndex = mockDataStore.users.findIndex(u => u.id === newUserId);
+  
+  if (referrerIndex === -1 || newUserIndex === -1) {
+    throw new Error("User not found");
+  }
+  
+  // Increase trust scores for both referrer and new user
+  const referrerTrustScore = Math.min(100, mockDataStore.users[referrerIndex].trustScore + 5);
+  const newUserTrustScore = Math.min(100, mockDataStore.users[newUserIndex].trustScore + 10);
+  
+  mockDataStore.users[referrerIndex].trustScore = referrerTrustScore;
+  mockDataStore.users[newUserIndex].trustScore = newUserTrustScore;
+  
+  mockDataStore.persistData();
+  
+  return {
+    success: true,
+    referrer: mockDataStore.users[referrerIndex],
+    newUser: mockDataStore.users[newUserIndex]
   };
 };

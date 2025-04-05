@@ -59,8 +59,8 @@ const LoanDetails = () => {
   
   const repayMutation = useMutation({
     mutationFn: () => {
-      if (!id || !user) throw new Error("Missing required data");
-      return repayLoan(id, user.id);
+      if (!id) throw new Error("Missing required data");
+      return repayLoan(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan', id] });
