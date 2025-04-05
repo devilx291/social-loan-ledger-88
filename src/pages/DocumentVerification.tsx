@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Loader2, Upload, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { verifyDocument, getUserDocuments } from "@/services/documentService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 
 interface UploadedDocument {
   userId: string;
@@ -30,11 +29,11 @@ const DocumentVerification = () => {
   const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
 
   // Fetch user documents on component mount
-  useState(() => {
+  useEffect(() => {
     if (user) {
       loadUserDocuments();
     }
-  });
+  }, [user]);
 
   const loadUserDocuments = async () => {
     if (!user) return;
@@ -328,4 +327,3 @@ const DocumentVerification = () => {
 };
 
 export default DocumentVerification;
-

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, CheckCircle, XCircle, Upload, FileCheck } from "lucide-react";
 import { verifyDocument } from "@/services/documentService";
@@ -194,6 +194,10 @@ const Settings = () => {
     }
   };
 
+  const navigateToDocumentVerification = () => {
+    navigate("/document-verification");
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AppSidebar />
@@ -210,7 +214,7 @@ const Settings = () => {
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="w-full mb-6">
               <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
-              <TabsTrigger value="documents" className="flex-1">Upload Documents</TabsTrigger>
+              <TabsTrigger value="documents" className="flex-1">KYC Documents</TabsTrigger>
               <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
               <TabsTrigger value="notifications" className="flex-1">Notifications</TabsTrigger>
             </TabsList>
@@ -261,7 +265,7 @@ const Settings = () => {
             <TabsContent value="documents">
               <Card>
                 <CardHeader>
-                  <CardTitle>Upload Documents</CardTitle>
+                  <CardTitle>KYC Document Verification</CardTitle>
                   <CardDescription>
                     Upload and verify your identity and financial documents to improve your trust score
                   </CardDescription>
@@ -377,6 +381,13 @@ const Settings = () => {
                       <li>• Documents are securely verified with blockchain technology</li>
                       <li>• Forged or false documents will reset your trust score to zero</li>
                     </ul>
+                  </div>
+                  
+                  <div className="mt-6">
+                    <Button onClick={navigateToDocumentVerification} variant="outline" className="w-full">
+                      <FileCheck className="mr-2 h-4 w-4" />
+                      Go to Document Verification Page
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
