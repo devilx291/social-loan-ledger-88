@@ -70,7 +70,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const requestOtp = async (phoneNumber: string) => {
     try {
-      await signIn(phoneNumber);
+      // Pass a dummy password since we'll validate with OTP later
+      // This fixes the error about needing 2 arguments
+      await signIn(phoneNumber, "temporary-password");
       toast({
         title: "OTP Sent",
         description: "Check your phone for the verification code",

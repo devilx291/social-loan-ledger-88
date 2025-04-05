@@ -1,12 +1,13 @@
-
 import { supabase } from "@/integrations/supabase/client";
+
+export type TransactionType = 'request' | 'approve' | 'reject' | 'repay';
 
 export type Transaction = {
   id: string;
   loanId: string | null;
   userId: string;
   amount: number;
-  transactionType: 'request' | 'approve' | 'reject' | 'repay';
+  transactionType: TransactionType;
   prevHash: string | null;
   currHash: string;
   createdAt: string;
@@ -29,7 +30,7 @@ export const getTransactionHistory = async (): Promise<Transaction[]> => {
     loanId: tx.loan_id,
     userId: tx.user_id,
     amount: tx.amount,
-    transactionType: tx.transaction_type,
+    transactionType: tx.transaction_type as TransactionType,
     prevHash: tx.prev_hash,
     currHash: tx.curr_hash,
     createdAt: tx.created_at,
@@ -54,7 +55,7 @@ export const getLoanTransactions = async (loanId: string): Promise<Transaction[]
     loanId: tx.loan_id,
     userId: tx.user_id,
     amount: tx.amount,
-    transactionType: tx.transaction_type,
+    transactionType: tx.transaction_type as TransactionType,
     prevHash: tx.prev_hash,
     currHash: tx.curr_hash,
     createdAt: tx.created_at,

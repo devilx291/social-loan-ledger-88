@@ -1,5 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
+
+export type LoanStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'overdue';
 
 export type Loan = {
   id: string;
@@ -7,14 +8,14 @@ export type Loan = {
   lenderId: string | null;
   amount: number;
   purpose: string;
-  status: 'pending' | 'approved' | 'rejected' | 'paid' | 'overdue';
+  status: LoanStatus;
   createdAt: string;
   approvedAt: string | null;
   dueDate: string | null;
   paidAt: string | null;
   borrowerName?: string;
   lenderName?: string;
-  borrowerTrustScore?: number; // Added missing property
+  borrowerTrustScore?: number;
 };
 
 export const createLoanRequest = async (
@@ -73,7 +74,20 @@ export const createLoanRequest = async (
 
   if (transactionError) throw transactionError;
 
-  return loan;
+  // When mapping database responses to our Loan type, ensure status is properly cast
+  return {
+    ...loan,
+    id: loan.id,
+    borrowerId: loan.borrower_id,
+    lenderId: loan.lender_id,
+    amount: loan.amount,
+    purpose: loan.purpose,
+    status: loan.status as LoanStatus,
+    createdAt: loan.created_at,
+    approvedAt: loan.approved_at,
+    dueDate: loan.due_date,
+    paidAt: loan.paid_at
+  };
 };
 
 export const approveLoan = async (
@@ -240,7 +254,7 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
     lenderId: data.lender_id,
     amount: data.amount,
     purpose: data.purpose,
-    status: data.status,
+    status: data.status as LoanStatus,
     createdAt: data.created_at,
     approvedAt: data.approved_at,
     dueDate: data.due_date,
@@ -280,7 +294,7 @@ export const getUserLoans = async (userId: string, type: 'borrower' | 'lender' |
     lenderId: loan.lender_id,
     amount: loan.amount,
     purpose: loan.purpose,
-    status: loan.status,
+    status: loan.status as LoanStatus,
     createdAt: loan.created_at,
     approvedAt: loan.approved_at,
     dueDate: loan.due_date,
@@ -308,7 +322,7 @@ export const getPendingLoans = async (): Promise<Loan[]> => {
     lenderId: loan.lender_id,
     amount: loan.amount,
     purpose: loan.purpose,
-    status: loan.status,
+    status: loan.status as LoanStatus,
     createdAt: loan.created_at,
     approvedAt: loan.approved_at,
     dueDate: loan.due_date,
