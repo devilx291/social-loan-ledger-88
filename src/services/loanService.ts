@@ -1,185 +1,150 @@
 
-import { supabase } from "@/integrations/supabase/client";
+import { mockDataStore, Loan } from "@/lib/mockData";
+import { v4 as uuidv4 } from 'uuid';
 
-export type LoanStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'overdue';
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export type Loan = {
-  id: string;
-  borrowerId: string;
-  lenderId: string | null;
-  amount: number;
-  purpose: string;
-  status: LoanStatus;
-  createdAt: string;
-  approvedAt: string | null;
-  dueDate: string | null;
-  paidAt: string | null;
-  borrowerName?: string;
-  lenderName?: string;
-  borrowerTrustScore?: number;
-};
-
-// Helper function to transform database loan to our Loan type
-const transformDatabaseLoan = (loan: any): Loan => ({
-  id: loan.id,
-  borrowerId: loan.borrower_id,
-  lenderId: loan.lender_id,
-  amount: loan.amount,
-  purpose: loan.purpose,
-  status: loan.status as LoanStatus,
-  createdAt: loan.created_at,
-  approvedAt: loan.approved_at,
-  dueDate: loan.due_date,
-  paidAt: loan.paid_at,
-  borrowerName: loan.borrower?.name,
-  lenderName: loan.lender?.name,
-  borrowerTrustScore: loan.borrower?.trust_score
-});
-
-export const createLoanRequest = async (
-  borrowerId: string,
-  amount: number,
-  purpose: string
-): Promise<Loan> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .insert([
-      {
-        borrower_id: borrowerId,
-        amount: amount,
-        purpose: purpose,
-        status: 'pending',
-      },
-    ])
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return transformDatabaseLoan(data);
-};
-
-export const getLoanById = async (loanId: string): Promise<Loan | null> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .select(`
-      *,
-      borrower:borrower_id(name, trust_score),
-      lender:lender_id(name)
-    `)
-    .eq('id', loanId)
-    .single();
-
-  if (error) throw error;
-
-  if (!data) return null;
-
-  return transformDatabaseLoan(data);
-};
-
-export const approveLoan = async (
-  loanId: string,
-  lenderId: string,
-  dueDate: string
-): Promise<Loan> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .update({
-      lender_id: lenderId,
-      status: 'approved',
-      approved_at: new Date().toISOString(),
-      due_date: dueDate,
-    })
-    .eq('id', loanId)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return transformDatabaseLoan(data);
-};
-
-export const repayLoan = async (
-  loanId: string,
-  borrowerId: string
-): Promise<Loan> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .update({
-      status: 'paid',
-      paid_at: new Date().toISOString(),
-    })
-    .eq('id', loanId)
-    .eq('borrower_id', borrowerId)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  return transformDatabaseLoan(data);
-};
-
-// Implementation of the missing getUserLoans function
-export const getUserLoans = async (userId: string, type?: 'borrower' | 'lender' | 'all'): Promise<Loan[]> => {
-  let query = supabase
-    .from('loans')
-    .select(`
-      *,
-      borrower:borrower_id(name, trust_score),
-      lender:lender_id(name)
-    `);
-    
-  if (type === 'borrower') {
-    query = query.eq('borrower_id', userId);
-  } else if (type === 'lender') {
-    query = query.eq('lender_id', userId);
-  } else {
-    // For 'all' or undefined, get both borrowed and lent loans
-    query = query.or(`borrower_id.eq.${userId},lender_id.eq.${userId}`);
+// Create a new loan request
+export const createLoanRequest = async (borrowerId: string, amount: number, purpose: string) => {
+  await delay(800);
+  
+  const borrower = mockDataStore.users.find(u => u.id === borrowerId);
+  
+  if (!borrower) {
+    throw new Error("Borrower not found");
   }
   
-  const { data, error } = await query.order('created_at', { ascending: false });
-    
-  if (error) throw error;
+  const newLoan: Loan = {
+    id: uuidv4(),
+    amount,
+    purpose,
+    status: 'pending',
+    borrowerId,
+    borrowerName: borrower.name,
+    borrowerTrustScore: borrower.trustScore,
+    createdAt: new Date().toISOString()
+  };
   
-  if (!data) return [];
-
-  // Transform the data to match our Loan type
-  return data.map(loan => transformDatabaseLoan(loan));
+  mockDataStore.loans.push(newLoan);
+  mockDataStore.persistData();
+  
+  return newLoan;
 };
 
-export const getPendingLoans = async (): Promise<Loan[]> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .select(`
-      *,
-      borrower:borrower_id(name, trust_score),
-      lender:lender_id(name)
-    `)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false });
-    
-  if (error) throw error;
+// Get all pending loan requests
+export const getPendingLoans = async () => {
+  await delay(500);
   
-  if (!data) return [];
-
-  return data.map(loan => transformDatabaseLoan(loan));
+  return mockDataStore.loans.filter(loan => loan.status === 'pending');
 };
 
-export const getLoanHistory = async (): Promise<Loan[]> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .select(`
-      *,
-      borrower:borrower_id(name, trust_score),
-      lender:lender_id(name)
-    `)
-    .not('status', 'eq', 'pending')
-    .order('created_at', { ascending: false });
-    
-  if (error) throw error;
+// Get loans by user ID and status
+export const getUserLoans = async (userId: string, status: 'all' | 'pending' | 'approved' | 'repaid' | 'overdue') => {
+  await delay(500);
   
-  if (!data) return [];
+  let userLoans = mockDataStore.loans.filter(loan => 
+    loan.borrowerId === userId || loan.lenderId === userId
+  );
+  
+  if (status !== 'all') {
+    userLoans = userLoans.filter(loan => loan.status === status);
+  }
+  
+  return userLoans;
+};
 
-  return data.map(loan => transformDatabaseLoan(loan));
+// Approve a loan
+export const approveLoan = async (loanId: string, lenderId: string, dueDate: string) => {
+  await delay(800);
+  
+  const loanIndex = mockDataStore.loans.findIndex(loan => loan.id === loanId);
+  
+  if (loanIndex === -1) {
+    throw new Error("Loan not found");
+  }
+  
+  const lender = mockDataStore.users.find(u => u.id === lenderId);
+  
+  if (!lender) {
+    throw new Error("Lender not found");
+  }
+  
+  mockDataStore.loans[loanIndex] = {
+    ...mockDataStore.loans[loanIndex],
+    status: 'approved',
+    lenderId,
+    lenderName: lender.name,
+    approvedAt: new Date().toISOString(),
+    dueDate,
+    transactionHash: `0x${Math.random().toString(16).substr(2, 40)}`  // Mock transaction hash
+  };
+  
+  mockDataStore.persistData();
+  
+  return mockDataStore.loans[loanIndex];
+};
+
+// Repay a loan
+export const repayLoan = async (loanId: string) => {
+  await delay(800);
+  
+  const loanIndex = mockDataStore.loans.findIndex(loan => loan.id === loanId);
+  
+  if (loanIndex === -1) {
+    throw new Error("Loan not found");
+  }
+  
+  mockDataStore.loans[loanIndex] = {
+    ...mockDataStore.loans[loanIndex],
+    status: 'repaid',
+    repaidAt: new Date().toISOString(),
+    transactionHash: `0x${Math.random().toString(16).substr(2, 40)}`  // Mock transaction hash
+  };
+  
+  // Increase borrower's trust score
+  const borrowerId = mockDataStore.loans[loanIndex].borrowerId;
+  const borrowerIndex = mockDataStore.users.findIndex(u => u.id === borrowerId);
+  
+  if (borrowerIndex !== -1 && mockDataStore.users[borrowerIndex].trustScore < 100) {
+    mockDataStore.users[borrowerIndex].trustScore += 5;
+    if (mockDataStore.users[borrowerIndex].trustScore > 100) {
+      mockDataStore.users[borrowerIndex].trustScore = 100;
+    }
+  }
+  
+  mockDataStore.persistData();
+  
+  return mockDataStore.loans[loanIndex];
+};
+
+// Get a specific loan by ID
+export const getLoanById = async (loanId: string) => {
+  await delay(300);
+  
+  const loan = mockDataStore.loans.find(loan => loan.id === loanId);
+  
+  if (!loan) {
+    throw new Error("Loan not found");
+  }
+  
+  return loan;
+};
+
+// Get ledger entries (all loans with transaction hashes)
+export const getLedgerEntries = async () => {
+  await delay(500);
+  
+  return mockDataStore.loans
+    .filter(loan => loan.transactionHash)
+    .sort((a, b) => {
+      const dateA = a.repaidAt ? new Date(a.repaidAt) : 
+                    a.approvedAt ? new Date(a.approvedAt) : 
+                    new Date(a.createdAt);
+      
+      const dateB = b.repaidAt ? new Date(b.repaidAt) : 
+                    b.approvedAt ? new Date(b.approvedAt) : 
+                    new Date(b.createdAt);
+      
+      return dateB.getTime() - dateA.getTime();
+    });
 };
