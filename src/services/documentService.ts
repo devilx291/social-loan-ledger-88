@@ -1,15 +1,5 @@
 
-interface VerifyDocumentResult {
-  verified: boolean;
-  score?: number;
-  message?: string;
-}
-
-interface DocumentData {
-  userId: string;
-  type: string;
-  documentUrl: string;
-}
+import { VerifyDocumentResult, UploadedDocument } from "@/types/documents";
 
 // This is a mock implementation for document verification
 // In a real application, this would call a backend service for verification
@@ -44,7 +34,7 @@ export const verifyDocument = async (formData: FormData): Promise<VerifyDocument
   }
 };
 
-export const getUserDocuments = async (userId: string): Promise<DocumentData[]> => {
+export const getUserDocuments = async (userId: string): Promise<UploadedDocument[]> => {
   // This would fetch from the database in a real implementation
   // Simulating an empty response for now
   return [];
