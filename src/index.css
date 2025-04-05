@@ -1,11 +1,15 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.cdnfonts.com/css/clash-display');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 214 100% 98%;
+    --background: 210 50% 98%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -14,16 +18,16 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 221.2 83.2% 53.3%;
+    --primary: 221.2 83.2% 60%;
     --primary-foreground: 210 40% 98%;
 
-    --secondary: 160 84% 39%;
+    --secondary: 174 100% 37.5%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 250 95.2% 63.5%;
+    --accent: 262 60% 60%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 84.2% 60.2%;
@@ -31,9 +35,9 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 221.2 83.2% 60%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -58,13 +62,13 @@
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 160 84% 39%;
+    --secondary: 174 100% 37.5%;
     --secondary-foreground: 210 40% 98%;
 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 250 95.2% 63.5%;
+    --accent: 262 60% 60%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
@@ -91,6 +95,37 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold tracking-tight;
+  }
+
+  .glass-effect {
+    @apply backdrop-blur-xl bg-white/90 border border-white/20 shadow-lg;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+  
+  .btn-gradient {
+    @apply bg-gradient-to-r from-brand-primary to-brand-accent text-white font-medium px-6 py-3 rounded-lg shadow-button transition-all hover:shadow-lg hover:-translate-y-0.5;
+  }
+  
+  .input-primary {
+    @apply px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all;
+  }
+  
+  .badge-trust {
+    @apply px-3 py-1 rounded-full font-medium text-sm text-white;
+  }
+  
+  .animated-border {
+    @apply relative after:absolute after:inset-0 after:rounded-lg after:border-2 after:border-brand-primary/50 after:animate-pulse;
   }
 }

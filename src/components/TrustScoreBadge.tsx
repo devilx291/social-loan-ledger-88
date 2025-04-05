@@ -7,8 +7,9 @@ type TrustScoreBadgeProps = {
 
 export const TrustScoreBadge = ({ score }: TrustScoreBadgeProps) => {
   let color = "";
+  let textColor = "text-white";
   let label = "";
-
+  
   if (score < 40) {
     color = "bg-trust-low";
     label = "Low Trust";
@@ -21,7 +22,7 @@ export const TrustScoreBadge = ({ score }: TrustScoreBadgeProps) => {
   }
 
   return (
-    <Badge className={`${color} text-white font-medium`}>
+    <Badge className={`${color} ${textColor} font-medium px-3 py-1 rounded-full`}>
       {label} ({score}/100)
     </Badge>
   );

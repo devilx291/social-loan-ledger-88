@@ -6,11 +6,11 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateUserTrustScore } from "@/services/authService";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 // Define question sections and their weights
 const sections = {
@@ -355,32 +355,32 @@ const CreditAssessment = () => {
     return (
       <div key={questionIndex} className="space-y-3 mb-8">
         <Label className="text-base">{question.text}</Label>
-        <RadioGroup
-          value={responses[questionIndex] as string || ""}
-          onValueChange={(value) => handleAnswerChange(questionIndex, parseInt(value))}
-          className="flex flex-col sm:flex-row gap-3"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="1" id={`q${questionIndex}_1`} />
-            <Label htmlFor={`q${questionIndex}_1`}>Strongly Disagree</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="2" id={`q${questionIndex}_2`} />
-            <Label htmlFor={`q${questionIndex}_2`}>Disagree</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="3" id={`q${questionIndex}_3`} />
-            <Label htmlFor={`q${questionIndex}_3`}>Neutral</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="4" id={`q${questionIndex}_4`} />
-            <Label htmlFor={`q${questionIndex}_4`}>Agree</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="5" id={`q${questionIndex}_5`} />
-            <Label htmlFor={`q${questionIndex}_5`}>Strongly Agree</Label>
-          </div>
-        </RadioGroup>
+        <div className="flex flex-col sm:flex-row gap-3">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <div key={`q${questionIndex}_${value}`} className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id={`q${questionIndex}_${value}`}
+                name={`question_${questionIndex}`}
+                value={value}
+                checked={responses[questionIndex] === value}
+                onChange={() => handleAnswerChange(questionIndex, value)}
+                className="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
+              />
+              <Label htmlFor={`q${questionIndex}_${value}`} className="cursor-pointer">
+                {value === 1
+                  ? "Strongly Disagree"
+                  : value === 2
+                  ? "Disagree"
+                  : value === 3
+                  ? "Neutral"
+                  : value === 4
+                  ? "Agree"
+                  : "Strongly Agree"}
+              </Label>
+            </div>
+          ))}
+        </div>
       </div>
     );
   };
@@ -402,27 +402,27 @@ const CreditAssessment = () => {
   );
   
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
       <AppSidebar />
       
       <div className="flex-1 p-6">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold">Credit Worthiness Assessment</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent bg-clip-text">Credit Worthiness Assessment</h1>
           <p className="text-muted-foreground">
             Complete this assessment to update your trust score
           </p>
         </header>
 
         <div className="max-w-3xl mx-auto">
-          <Card>
-            <CardHeader>
+          <Card className="shadow-lg border-none">
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
               <CardTitle>
                 {showResults 
                   ? "Assessment Results" 
                   : `${sectionNames[currentSection]} (${currentSection + 1}/${sectionNames.length})`
                 }
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-blue-100">
                 {showResults 
                   ? "Thank you for completing the assessment" 
                   : "Please answer all questions honestly for an accurate assessment"
@@ -430,7 +430,7 @@ const CreditAssessment = () => {
               </CardDescription>
             </CardHeader>
             
-            <CardContent>
+            <CardContent className="pt-6">
               {showResults ? (
                 renderResults()
               ) : (
@@ -448,12 +448,14 @@ const CreditAssessment = () => {
                   variant="outline"
                   onClick={handlePrevSection}
                   disabled={currentSection === 0 || isSubmitting}
+                  className="border-blue-300 hover:bg-blue-50"
                 >
                   Previous Section
                 </Button>
                 <Button
                   onClick={handleNextSection}
                   disabled={!isSectionComplete(currentSection) || isSubmitting}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 >
                   {currentSection < sectionNames.length - 1 
                     ? "Next Section" 
