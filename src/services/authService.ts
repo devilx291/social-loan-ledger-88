@@ -64,9 +64,10 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     };
   }
   
-  // Check if the profile has an is_verified field, if not default to false
+  // Check for is_verified property using hasOwnProperty to avoid TypeScript errors
   // This handles the case where the is_verified column doesn't exist yet in profiles table
-  const isVerified = profile.is_verified !== undefined ? profile.is_verified : false;
+  const isVerified = Object.prototype.hasOwnProperty.call(profile, 'is_verified') ? 
+    (profile as any).is_verified : false;
   
   return {
     id: user.id,
