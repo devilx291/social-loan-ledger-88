@@ -19,6 +19,7 @@ import { SidebarProvider } from "./components/ui/sidebar";
 import Ledger from "./pages/Ledger";
 import LoanDetails from "./pages/LoanDetails";
 import CreditAssessment from "./pages/CreditAssessment";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />
               <Route path="/loans/:id" element={<ProtectedRoute><LoanDetails /></ProtectedRoute>} />
               <Route path="/credit-assessment" element={<ProtectedRoute><CreditAssessment /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </SidebarProvider>

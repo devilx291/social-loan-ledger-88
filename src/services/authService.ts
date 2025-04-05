@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 
@@ -7,6 +6,7 @@ export type AuthUser = {
   name: string;
   phoneNumber: string; // This will store email
   trustScore: number;
+  isVerified?: boolean;
 };
 
 export const signUp = async (email: string, name: string, password: string) => {
@@ -59,6 +59,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
       name: user.user_metadata?.name || 'User',
       phoneNumber: user.email || '',
       trustScore: 50,
+      isVerified: false,
     };
   }
   
@@ -67,20 +68,36 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     name: profile.name || user.user_metadata?.name || 'User',
     phoneNumber: user.email || '',
     trustScore: profile.trust_score || 50,
+    isVerified: profile.is_verified || false,
   };
 };
 
 export const updateUserProfile = async (userId: string, updates: Partial<AuthUser>) => {
-  // Here we would update the user profile in a profiles table
-  // For now, we'll just update the user metadata
-  const { error } = await supabase.auth.updateUser({
-    data: {
-      name: updates.name,
+  try {
+    // Update auth user metadata if name is provided
+    if (updates.name) {
+      await supabase.auth.updateUser({
+        data: {
+          name: updates.name,
+        }
+      });
     }
-  });
     
-  if (error) throw error;
-  return true;
+    // Update profile in the profiles table
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name: updates.name,
+        is_verified: updates.isVerified
+      })
+      .eq('id', userId);
+      
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    throw error;
+  }
 };
 
 // Updated function to update a user's trust score
@@ -116,6 +133,51 @@ export const updateUserTrustScore = async (userId: string, trustScore: number) =
     return true;
   } catch (error) {
     console.error("Failed to update trust score:", error);
+    throw error;
+  }
+};
+
+// New function to handle referrals
+export const processReferral = async (referrerId: string, newUserId: string) => {
+  try {
+    // Create referral record
+    const { error: referralError } = await supabase
+      .from('referrals')
+      .insert({
+        referrer_id: referrerId,
+        referred_id: newUserId,
+        status: 'completed',
+      });
+      
+    if (referralError) throw referralError;
+    
+    // Get referrer's current trust score
+    const { data: referrer, error: referrerError } = await supabase
+      .from('profiles')
+      .select('trust_score')
+      .eq('id', referrerId)
+      .single();
+      
+    if (referrerError) throw referrerError;
+    
+    // Get referred user's current trust score
+    const { data: referred, error: referredError } = await supabase
+      .from('profiles')
+      .select('trust_score')
+      .eq('id', newUserId)
+      .single();
+      
+    if (referredError) throw referredError;
+    
+    // Update referrer's trust score (+3)
+    await updateUserTrustScore(referrerId, referrer.trust_score + 3);
+    
+    // Update referred user's trust score (+2)
+    await updateUserTrustScore(newUserId, referred.trust_score + 2);
+    
+    return true;
+  } catch (error) {
+    console.error("Error processing referral:", error);
     throw error;
   }
 };
