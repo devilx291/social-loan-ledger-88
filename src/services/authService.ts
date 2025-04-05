@@ -17,6 +17,14 @@ export interface AuthUser {
   createdAt: string;
 }
 
+// Store OTPs temporarily (in a real app, this would be in a database with expiration)
+const otpStore: Record<string, { otp: string, expiresAt: number }> = {};
+
+// Generate a 4-digit OTP
+const generateOTP = () => {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
 // Sign up a new user
 export const signUp = async (email: string, name: string, password: string) => {
   // Simulate network delay
@@ -73,6 +81,86 @@ export const signIn = async (email: string, password: string) => {
       name: user.name,
       phoneNumber: user.phoneNumber,
       email: user.email,
+      trustScore: user.trustScore,
+      isVerified: user.isVerified
+    }
+  };
+};
+
+// Send OTP to phone number
+export const sendOtp = async (phoneNumber: string) => {
+  // Simulate network delay
+  await delay(1000);
+  
+  // Format phone number (remove +91 or 0 prefix if present)
+  const formattedPhone = phoneNumber.replace(/^(\+91|0)/, '');
+  
+  // Generate a 4-digit OTP
+  const otp = generateOTP();
+  
+  // Store OTP with 5 minute expiration
+  otpStore[formattedPhone] = {
+    otp,
+    expiresAt: Date.now() + 5 * 60 * 1000
+  };
+  
+  console.log(`OTP for ${formattedPhone}: ${otp}`); // For development purposes
+  
+  return { success: true, message: "OTP sent successfully" };
+};
+
+// Verify OTP
+export const verifyUserOtp = async (phoneNumber: string, otp: string) => {
+  // Simulate network delay
+  await delay(800);
+  
+  // Format phone number
+  const formattedPhone = phoneNumber.replace(/^(\+91|0)/, '');
+  
+  // Check if OTP exists and is valid
+  const otpData = otpStore[formattedPhone];
+  
+  if (!otpData) {
+    throw new Error("OTP expired or not found. Please request a new one.");
+  }
+  
+  if (otpData.expiresAt < Date.now()) {
+    delete otpStore[formattedPhone];
+    throw new Error("OTP has expired. Please request a new one.");
+  }
+  
+  if (otpData.otp !== otp) {
+    throw new Error("Invalid OTP. Please try again.");
+  }
+  
+  // OTP is valid, clean up
+  delete otpStore[formattedPhone];
+  
+  // Find or create user
+  let user = mockDataStore.users.find(u => u.phoneNumber === phoneNumber);
+  
+  if (!user) {
+    // Create a new user if not found
+    user = {
+      id: uuidv4(),
+      name: `User_${formattedPhone.substr(-4)}`, // Generate a name based on last 4 digits
+      phoneNumber,
+      trustScore: 50,
+      isVerified: true,
+      createdAt: new Date().toISOString()
+    };
+    mockDataStore.users.push(user);
+    mockDataStore.persistData();
+  }
+  
+  // Store current user in session storage
+  sessionStorage.setItem('currentUserId', user.id);
+  
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      phoneNumber: user.phoneNumber,
       trustScore: user.trustScore,
       isVerified: user.isVerified
     }
@@ -155,7 +243,7 @@ export const updateUserTrustScore = async (userId: string, trustScore: number) =
   };
 };
 
-// Process referral - adding missing function
+// Process referral
 export const processReferral = async (referrerId: string, newUserId: string) => {
   await delay(800);
   

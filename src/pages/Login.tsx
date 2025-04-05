@@ -5,24 +5,49 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowRight, PiggyBank, ShieldCheck, KeyRound, Mail } from "lucide-react";
+import { ArrowRight, PiggyBank, ShieldCheck, Phone } from "lucide-react";
+import { 
+  InputOTP, 
+  InputOTPGroup, 
+  InputOTPSlot 
+} from "@/components/ui/input-otp";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [otp, setOtp] = useState("");
+  const [showOtpInput, setShowOtpInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { loginWithOtp, verifyOtp } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      // Validate Indian phone number format
+      if (!phoneNumber.match(/^(\+91|0)?[6-9]\d{9}$/)) {
+        throw new Error("Please enter a valid Indian phone number");
+      }
+
+      await loginWithOtp(phoneNumber);
+      setShowOtpInput(true);
+    } catch (error: any) {
+      console.error("OTP request failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      await verifyOtp(phoneNumber, otp);
       navigate("/dashboard");
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("OTP verification failed:", error);
     } finally {
       setIsLoading(false);
     }
@@ -41,52 +66,88 @@ const Login = () => {
           </Link>
           
           <h1 className="text-3xl font-display font-bold mb-2 text-gray-900">Welcome Back</h1>
-          <p className="text-muted-foreground mb-8">Enter your credentials to access your account</p>
+          <p className="text-muted-foreground mb-8">Login with your phone number</p>
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                  className="pl-10 py-6 bg-gray-50 border-gray-200"
-                />
+          {!showOtpInput ? (
+            <form onSubmit={handleSendOtp} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="Enter your Indian mobile number"
+                    required
+                    className="pl-10 py-6 bg-gray-50 border-gray-200"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Format: +91xxxxxxxxxx or 0xxxxxxxxxx</p>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
-                <Link to="#" className="text-sm text-brand-primary hover:underline">Forgot password?</Link>
+              
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-brand-primary to-brand-accent hover:opacity-90 transition-opacity py-6 text-lg"
+              >
+                {isLoading ? "Sending OTP..." : "Send OTP"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="otp" className="text-sm font-medium">Enter 4-digit OTP</Label>
+                <div className="flex justify-center py-4">
+                  <InputOTP 
+                    value={otp} 
+                    onChange={setOtp}
+                    maxLength={4}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <p className="text-sm text-center">
+                  Didn't receive the code?{" "}
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsLoading(true);
+                      loginWithOtp(phoneNumber)
+                        .finally(() => setIsLoading(false));
+                    }}
+                    className="text-brand-primary hover:underline"
+                    disabled={isLoading}
+                  >
+                    Resend
+                  </button>
+                </p>
               </div>
-              <div className="relative">
-                <KeyRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  className="pl-10 py-6 bg-gray-50 border-gray-200"
-                />
-              </div>
-            </div>
-            
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-brand-primary to-brand-accent hover:opacity-90 transition-opacity py-6 text-lg"
-            >
-              {isLoading ? "Signing in..." : "Sign In"}
-            </Button>
-          </form>
+              
+              <Button
+                type="submit"
+                disabled={isLoading || otp.length !== 4}
+                className="w-full bg-gradient-to-r from-brand-primary to-brand-accent hover:opacity-90 transition-opacity py-6 text-lg"
+              >
+                {isLoading ? "Verifying..." : "Verify & Login"}
+              </Button>
+              
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowOtpInput(false)}
+                className="w-full py-6 text-lg"
+              >
+                Change Phone Number
+              </Button>
+            </form>
+          )}
           
           <p className="text-center mt-8 text-muted-foreground">
             Don't have an account?{" "}

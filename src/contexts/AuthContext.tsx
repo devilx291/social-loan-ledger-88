@@ -1,6 +1,15 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { signUp, signIn, signOut, getCurrentUser, AuthUser, updateUserProfile } from "@/services/authService";
+import { 
+  signUp, 
+  signIn, 
+  signOut, 
+  getCurrentUser, 
+  updateUserProfile, 
+  AuthUser,
+  sendOtp,
+  verifyUserOtp
+} from "@/services/authService";
 import { useToast } from "@/components/ui/use-toast";
 
 type AuthContextType = {
@@ -8,7 +17,9 @@ type AuthContextType = {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<any>; // Updated return type
+  loginWithOtp: (phoneNumber: string) => Promise<void>;
+  verifyOtp: (phoneNumber: string, otp: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<any>;
   logout: () => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => Promise<void>;
 };
@@ -80,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Login
+  // Login with email and password
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
@@ -103,6 +114,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast({
         title: "Login failed",
         description: err.message || "Please check your credentials and try again",
+        variant: "destructive",
+        duration: 5000,
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Login with OTP
+  const loginWithOtp = async (phoneNumber: string) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      await sendOtp(phoneNumber);
+      
+      toast({
+        title: "OTP Sent",
+        description: "Please check your phone for the verification code",
+        duration: 3000,
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP");
+      toast({
+        title: "OTP sending failed",
+        description: err.message || "Please try again",
+        variant: "destructive",
+        duration: 5000,
+      });
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Verify OTP
+  const verifyOtp = async (phoneNumber: string, otp: string) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const { user } = await verifyUserOtp(phoneNumber, otp);
+      
+      if (user) {
+        const userData = await getCurrentUser();
+        setUser(userData);
+        
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+          duration: 3000,
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || "OTP verification failed");
+      toast({
+        title: "Verification failed",
+        description: err.message || "Invalid OTP, please try again",
         variant: "destructive",
         duration: 5000,
       });
@@ -171,6 +241,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     error,
     login,
+    loginWithOtp,
+    verifyOtp,
     register,
     logout,
     updateUser,
