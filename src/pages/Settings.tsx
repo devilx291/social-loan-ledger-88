@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Camera, Link, Share2, UserCheck } from "lucide-react";
 import { TrustScoreBadge } from "@/components/TrustScoreBadge";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { AppSidebar } from "@/components/AppSidebar";
 import { updateUserTrustScore } from "@/services/authService";
 
 const KYCVerification = () => {
@@ -227,27 +227,32 @@ const Settings = () => {
   }
 
   return (
-    <div className="container max-w-4xl py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Account Settings</h1>
-        <div className="flex items-center gap-2 mt-2">
-          <p className="text-muted-foreground">Trust Score:</p>
-          <TrustScoreBadge score={user.trustScore} />
+    <div className="flex h-screen">
+      <AppSidebar />
+      <div className="flex-1 overflow-auto">
+        <div className="container max-w-4xl py-8">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold">Account Settings</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <p className="text-muted-foreground">Trust Score:</p>
+              <TrustScoreBadge score={user.trustScore} />
+            </div>
+          </div>
+
+          <Tabs defaultValue="kyc" className="w-full">
+            <TabsList className="w-full mb-6">
+              <TabsTrigger value="kyc" className="flex-1">KYC Verification</TabsTrigger>
+              <TabsTrigger value="referral" className="flex-1">Referral System</TabsTrigger>
+            </TabsList>
+            <TabsContent value="kyc">
+              <KYCVerification />
+            </TabsContent>
+            <TabsContent value="referral">
+              <ReferralSystem />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-
-      <Tabs defaultValue="kyc" className="w-full">
-        <TabsList className="w-full mb-6">
-          <TabsTrigger value="kyc" className="flex-1">KYC Verification</TabsTrigger>
-          <TabsTrigger value="referral" className="flex-1">Referral System</TabsTrigger>
-        </TabsList>
-        <TabsContent value="kyc">
-          <KYCVerification />
-        </TabsContent>
-        <TabsContent value="referral">
-          <ReferralSystem />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };
