@@ -51,7 +51,7 @@ const Register = () => {
       const result = await register(data.name, data.email, data.password);
       
       // Process referral if referrerId exists and registration was successful
-      if (referrerId && result?.user?.id) {
+      if (referrerId && result && result.user && result.user.id) {
         try {
           await processReferral(referrerId, result.user.id);
           toast({

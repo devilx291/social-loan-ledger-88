@@ -8,7 +8,7 @@ type AuthContextType = {
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<any>; // Updated return type
   logout: () => Promise<void>;
   updateUser: (updates: Partial<AuthUser>) => Promise<void>;
 };
@@ -43,22 +43,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      const { user } = await signUp(email, name, password);
+      const result = await signUp(email, name, password);
       
-      if (user) {
-        setUser({
-          id: user.id,
+      if (result && result.user) {
+        const userData = {
+          id: result.user.id,
           name,
           phoneNumber: email, // Using email instead of phone
           trustScore: 50 // Default trust score for new users
-        });
+        };
+        
+        setUser(userData);
         
         toast({
           title: "Account created!",
           description: "Welcome to Social Loan Ledger!",
           duration: 5000,
         });
+        
+        return result; // Return the full result
       }
+      
+      return result; // Return whatever we got
     } catch (err: any) {
       setError(err.message || "Registration failed");
       toast({
