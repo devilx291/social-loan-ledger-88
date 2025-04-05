@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export type TransactionType = 'request' | 'approve' | 'reject' | 'repay';
@@ -33,7 +34,7 @@ export const getTransactionsByLoanId = async (loanId: string): Promise<Transacti
     loanId: tx.loan_id,
     userId: tx.user_id,
     amount: tx.amount,
-    transactionType: tx.transaction_type as TransactionType, // Properly cast the type
+    transactionType: tx.transaction_type as TransactionType,
     prevHash: tx.prev_hash,
     currHash: tx.curr_hash,
     createdAt: tx.created_at,
@@ -59,12 +60,36 @@ export const getAllTransactions = async (): Promise<Transaction[]> => {
     loanId: tx.loan_id,
     userId: tx.user_id,
     amount: tx.amount,
-    transactionType: tx.transaction_type as TransactionType, // Properly cast the type
+    transactionType: tx.transaction_type as TransactionType,
     prevHash: tx.prev_hash,
     currHash: tx.curr_hash,
     createdAt: tx.created_at,
     userName: tx.user?.name
   }));
+};
+
+// Implementation of getLoanTransactions (alias for getTransactionsByLoanId)
+export const getLoanTransactions = getTransactionsByLoanId;
+
+// Implementation of the missing getTransactionHistory function (alias for getAllTransactions)
+export const getTransactionHistory = getAllTransactions;
+
+// Implement a mock verify blockchain function
+export type BlockchainVerificationResult = {
+  valid: boolean;
+  invalidBlocks: string[];
+};
+
+export const verifyBlockchain = async (): Promise<BlockchainVerificationResult> => {
+  const transactions = await getAllTransactions();
+  
+  // Simple mock implementation for now - assumes all transactions are valid
+  // In a real app, this would verify each transaction's hash against its previous hash
+  
+  return {
+    valid: true,
+    invalidBlocks: [],
+  };
 };
 
 const calculateHash = (transaction: Omit<Transaction, 'id' | 'currHash' | 'createdAt'>, prevHash: string | null): string => {
@@ -100,11 +125,11 @@ export const createTransaction = async (
   const prevHash = lastTransaction ? lastTransaction.curr_hash : null;
 
   const newTransaction = {
-    loan_id: loanId,
-    user_id: userId,
+    loanId,
+    userId,
     amount,
-    transaction_type: transactionType,
-    prev_hash: prevHash,
+    transactionType,
+    prevHash,
   };
 
   const currHash = calculateHash(newTransaction, prevHash);

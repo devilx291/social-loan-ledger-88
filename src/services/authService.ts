@@ -34,17 +34,6 @@ export const signIn = async (email: string, password: string) => {
   return data;
 };
 
-export const verifyOtp = async (email: string, otp: string) => {
-  const { data, error } = await supabase.auth.verifyOtp({
-    email,
-    token: otp,
-    type: 'email',
-  });
-
-  if (error) throw error;
-  return data;
-};
-
 export const signOut = async () => {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;

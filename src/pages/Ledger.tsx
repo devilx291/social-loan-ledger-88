@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getTransactionHistory, verifyBlockchain } from "@/services/transactionService";
+import { getTransactionHistory, verifyBlockchain, Transaction, BlockchainVerificationResult } from "@/services/transactionService";
 import { format } from "date-fns";
 import { ShieldCheck, AlertTriangle, Search, ArrowRight, FileCheck, CheckCircle, AlertCircle, CircleDollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +17,7 @@ import {
 
 const Ledger = () => {
   const [searchHash, setSearchHash] = useState("");
-  const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   
   const { data: transactions, isLoading: isLoadingTransactions } = useQuery({
@@ -26,7 +25,7 @@ const Ledger = () => {
     queryFn: getTransactionHistory,
   });
   
-  const { data: verificationResult, isLoading: isVerifying } = useQuery({
+  const { data: verificationResult, isLoading: isVerifying } = useQuery<BlockchainVerificationResult>({
     queryKey: ['verifyBlockchain'],
     queryFn: verifyBlockchain,
   });
@@ -53,10 +52,9 @@ const Ledger = () => {
     setHasSearched(false);
   };
   
-  const displayedTransactions = hasSearched ? filteredTransactions : transactions;
+  const displayedTransactions = hasSearched ? filteredTransactions : transactions || [];
   const isLoading = isLoadingTransactions || isVerifying;
   
-  // Helper function to get icon for transaction type
   const getTransactionTypeIcon = (type: string) => {
     switch (type) {
       case 'request':
@@ -85,7 +83,6 @@ const Ledger = () => {
         </header>
 
         <div className="grid gap-6 lg:grid-cols-3 mb-8">
-          {/* Blockchain Verification Card */}
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -165,7 +162,6 @@ const Ledger = () => {
             </CardContent>
           </Card>
           
-          {/* Search Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -215,7 +211,6 @@ const Ledger = () => {
           </Card>
         </div>
         
-        {/* Transaction History */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +6,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getLoanById, repayLoan } from "@/services/loanService";
-import { getLoanTransactions } from "@/services/transactionService";
+import { getTransactionsByLoanId } from "@/services/transactionService";
 import { useToast } from "@/components/ui/use-toast";
 import { format, isAfter } from "date-fns";
 import { 
@@ -54,7 +53,7 @@ const LoanDetails = () => {
   
   const { data: transactions, isLoading: isLoadingTransactions } = useQuery({
     queryKey: ['loanTransactions', id],
-    queryFn: () => (id ? getLoanTransactions(id) : Promise.resolve([])),
+    queryFn: () => (id ? getTransactionsByLoanId(id) : Promise.resolve([])),
     enabled: !!id,
   });
   
@@ -85,11 +84,9 @@ const LoanDetails = () => {
   const isLoading = isLoadingLoan || isLoadingTransactions;
   const isOverdue = loan?.dueDate && isAfter(new Date(), new Date(loan.dueDate)) && loan.status === 'approved';
   
-  // Determine if the current user is the borrower or the lender
   const isBorrower = loan?.borrowerId === user?.id;
   const isLender = loan?.lenderId === user?.id;
   
-  // Check if loan can be repaid (only by borrower of an approved loan)
   const canRepay = isBorrower && loan?.status === 'approved';
 
   const handleRepay = () => {
@@ -150,7 +147,6 @@ const LoanDetails = () => {
           </div>
         ) : loan ? (
           <div className="grid gap-6 lg:grid-cols-3">
-            {/* Loan Details Card */}
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
@@ -260,7 +256,6 @@ const LoanDetails = () => {
                 )}
               </Card>
               
-              {/* Transaction Timeline */}
               <Card className="mt-6">
                 <CardHeader>
                   <CardTitle className="text-lg">Loan Timeline</CardTitle>
@@ -331,7 +326,6 @@ const LoanDetails = () => {
               </Card>
             </div>
             
-            {/* Loan Terms and Additional Info */}
             <div>
               <Card className="mb-6">
                 <CardHeader>
@@ -412,7 +406,6 @@ const LoanDetails = () => {
         )}
       </div>
       
-      {/* Repayment Confirmation Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>

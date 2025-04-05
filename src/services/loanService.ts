@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export type LoanStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'overdue';
@@ -118,68 +119,33 @@ export const repayLoan = async (
   return transformDatabaseLoan(data);
 };
 
-export const getUserLoanRequests = async (userId: string): Promise<Loan[]> => {
-  const { data, error } = await supabase
+// Implementation of the missing getUserLoans function
+export const getUserLoans = async (userId: string, type?: 'borrower' | 'lender' | 'all'): Promise<Loan[]> => {
+  let query = supabase
     .from('loans')
     .select(`
       *,
       borrower:borrower_id(name, trust_score),
       lender:lender_id(name)
-    `)
-    .eq('borrower_id', userId)
-    .order('created_at', { ascending: false });
+    `);
+    
+  if (type === 'borrower') {
+    query = query.eq('borrower_id', userId);
+  } else if (type === 'lender') {
+    query = query.eq('lender_id', userId);
+  } else {
+    // For 'all' or undefined, get both borrowed and lent loans
+    query = query.or(`borrower_id.eq.${userId},lender_id.eq.${userId}`);
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
     
   if (error) throw error;
   
   if (!data) return [];
 
   // Transform the data to match our Loan type
-  return data.map(loan => ({
-    id: loan.id,
-    borrowerId: loan.borrower_id,
-    lenderId: loan.lender_id,
-    amount: loan.amount,
-    purpose: loan.purpose,
-    status: loan.status as LoanStatus, // Properly cast the status
-    createdAt: loan.created_at,
-    approvedAt: loan.approved_at,
-    dueDate: loan.due_date,
-    paidAt: loan.paid_at,
-    borrowerName: loan.borrower?.name,
-    lenderName: loan.lender?.name
-  }));
-};
-
-export const getUserLoanFunding = async (userId: string): Promise<Loan[]> => {
-  const { data, error } = await supabase
-    .from('loans')
-    .select(`
-      *,
-      borrower:borrower_id(name, trust_score),
-      lender:lender_id(name)
-    `)
-    .eq('lender_id', userId)
-    .order('created_at', { ascending: false });
-    
-  if (error) throw error;
-  
-  if (!data) return [];
-
-  // Transform the data to match our Loan type
-  return data.map(loan => ({
-    id: loan.id,
-    borrowerId: loan.borrower_id,
-    lenderId: loan.lender_id,
-    amount: loan.amount,
-    purpose: loan.purpose,
-    status: loan.status as LoanStatus, // Properly cast the status
-    createdAt: loan.created_at,
-    approvedAt: loan.approved_at,
-    dueDate: loan.due_date,
-    paidAt: loan.paid_at,
-    borrowerName: loan.borrower?.name,
-    lenderName: loan.lender?.name
-  }));
+  return data.map(loan => transformDatabaseLoan(loan));
 };
 
 export const getPendingLoans = async (): Promise<Loan[]> => {
@@ -197,21 +163,7 @@ export const getPendingLoans = async (): Promise<Loan[]> => {
   
   if (!data) return [];
 
-  // Transform the data to match our Loan type
-  return data.map(loan => ({
-    id: loan.id,
-    borrowerId: loan.borrower_id,
-    lenderId: loan.lender_id,
-    amount: loan.amount,
-    purpose: loan.purpose,
-    status: loan.status as LoanStatus, // Properly cast the status
-    createdAt: loan.created_at,
-    approvedAt: loan.approved_at,
-    dueDate: loan.due_date,
-    paidAt: loan.paid_at,
-    borrowerName: loan.borrower?.name,
-    borrowerTrustScore: loan.borrower?.trust_score
-  }));
+  return data.map(loan => transformDatabaseLoan(loan));
 };
 
 export const getLoanHistory = async (): Promise<Loan[]> => {
@@ -229,20 +181,5 @@ export const getLoanHistory = async (): Promise<Loan[]> => {
   
   if (!data) return [];
 
-  // Transform the data to match our Loan type
-  return data.map(loan => ({
-    id: loan.id,
-    borrowerId: loan.borrower_id,
-    lenderId: loan.lender_id,
-    amount: loan.amount,
-    purpose: loan.purpose,
-    status: loan.status as LoanStatus, // Properly cast the status
-    createdAt: loan.created_at,
-    approvedAt: loan.approved_at,
-    dueDate: loan.due_date,
-    paidAt: loan.paid_at,
-    borrowerName: loan.borrower?.name,
-    lenderName: loan.lender?.name,
-    borrowerTrustScore: loan.borrower?.trust_score
-  }));
+  return data.map(loan => transformDatabaseLoan(loan));
 };

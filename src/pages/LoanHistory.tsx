@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -35,14 +34,8 @@ const LoanHistory = () => {
     queryFn: () => {
       if (!user) return Promise.resolve([]);
       
-      switch (filter) {
-        case 'borrowed':
-          return getUserLoans(user.id, 'borrower');
-        case 'lent':
-          return getUserLoans(user.id, 'lender');
-        default:
-          return getUserLoans(user.id, 'all');
-      }
+      return getUserLoans(user.id, filter === 'all' ? 'all' : 
+                           filter === 'borrowed' ? 'borrower' : 'lender');
     },
     enabled: !!user,
   });

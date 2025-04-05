@@ -1,6 +1,6 @@
 
 import { createContext, useState, useContext, useEffect, ReactNode } from "react";
-import { signUp, signIn, verifyOtp, signOut, getCurrentUser, AuthUser, updateUserProfile } from "@/services/authService";
+import { signUp, signIn, signOut, getCurrentUser, AuthUser, updateUserProfile } from "@/services/authService";
 import { useToast } from "@/components/ui/use-toast";
 
 type AuthContextType = {

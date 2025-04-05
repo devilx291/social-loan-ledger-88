@@ -17,7 +17,7 @@ const Dashboard = () => {
   
   const { data: loans, isLoading } = useQuery({
     queryKey: ['userLoans', user?.id],
-    queryFn: () => (user ? getUserLoans(user.id) : Promise.resolve([])),
+    queryFn: () => (user ? getUserLoans(user.id, 'all') : Promise.resolve([])),
     enabled: !!user,
   });
   
