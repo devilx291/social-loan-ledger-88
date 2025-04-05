@@ -18,6 +18,7 @@ import LoanHistory from "./pages/LoanHistory";
 import { SidebarProvider } from "./components/ui/sidebar";
 import Ledger from "./pages/Ledger";
 import LoanDetails from "./pages/LoanDetails";
+import CreditAssessment from "./pages/CreditAssessment";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="/loan-history" element={<ProtectedRoute><LoanHistory /></ProtectedRoute>} />
               <Route path="/ledger" element={<ProtectedRoute><Ledger /></ProtectedRoute>} />
               <Route path="/loans/:id" element={<ProtectedRoute><LoanDetails /></ProtectedRoute>} />
+              <Route path="/credit-assessment" element={<ProtectedRoute><CreditAssessment /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </SidebarProvider>

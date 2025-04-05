@@ -66,3 +66,15 @@ export const updateUserProfile = async (userId: string, updates: Partial<AuthUse
   if (error) throw error;
   return true;
 };
+
+// New function to update a user's trust score
+export const updateUserTrustScore = async (userId: string, trustScore: number) => {
+  // Call the RPC function to update trust score
+  const { error } = await supabase.rpc('update_trust_score', {
+    user_id: userId,
+    score_change: trustScore - 50 // Assuming 50 is the base score, adjust by difference
+  });
+
+  if (error) throw error;
+  return true;
+};
