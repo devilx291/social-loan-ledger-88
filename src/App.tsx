@@ -21,6 +21,7 @@ import LoanDetails from "./pages/LoanDetails";
 import CreditAssessment from "./pages/CreditAssessment";
 import Settings from "./pages/Settings";
 import HelpSupport from "./pages/HelpSupport";
+import DocumentVerification from "./pages/DocumentVerification";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/credit-assessment" element={<ProtectedRoute><CreditAssessment /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/help-support" element={<ProtectedRoute><HelpSupport /></ProtectedRoute>} />
+              <Route path="/document-verification" element={<ProtectedRoute><DocumentVerification /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </SidebarProvider>

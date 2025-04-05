@@ -26,6 +26,7 @@ const predefinedResponses: Record<string, string> = {
   "verification": "We use KYC (Know Your Customer) verification to ensure the security of our community. You can complete verification in your account settings under the 'KYC Verification' tab.",
   "blockchain": "Our platform uses blockchain technology to securely record all loan transactions. This ensures transparency and immutability of all lending activities.",
   "referral": "You can refer friends using the referral link in your Settings page under the 'Referral System' tab. Both you and your referred friends will receive trust score boosts when they sign up.",
+  "documents": "You can upload and verify your identity documents like Aadhaar Card and Income Tax Return in the Document Verification section. Verified documents will increase your trust score.",
   "default": "I'm your TrustFund financial assistant. I can help with questions about loans, interest rates, repayments, trust scores, and more. How can I help you today?"
 };
 
@@ -238,6 +239,23 @@ const HelpSupport = () => {
                     If you're having trouble with repayments, contact support immediately. We offer 
                     restructuring options for hardship cases. Late or missed payments will affect your 
                     trust score and may limit future borrowing capacity.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-medium text-lg">What documents do I need to verify my identity?</h3>
+                  <p className="text-muted-foreground">
+                    We require your Aadhaar Card and Income Tax Return for identity verification. You can upload these
+                    documents in the Document Verification section. Our system will check for authenticity,
+                    and verified documents will increase your trust score.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-medium text-lg">What happens if my document verification fails?</h3>
+                  <p className="text-muted-foreground">
+                    If our system detects potential forgery in your documents, your trust score will be reset to 0.
+                    You can contact support to understand the issue and submit authentic documents for reverification.
                   </p>
                 </div>
               </CardContent>
