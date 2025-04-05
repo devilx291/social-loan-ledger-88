@@ -188,7 +188,7 @@ const DocumentVerification = () => {
                     </div>
                     
                     {verificationStatus === "success" && verificationMessage && (
-                      <Alert variant="success" className="bg-green-50 border-green-200">
+                      <Alert className="bg-green-50 border-green-200">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
                         <AlertTitle className="text-green-800">Success</AlertTitle>
                         <AlertDescription className="text-green-700">
@@ -246,7 +246,7 @@ const DocumentVerification = () => {
                     </div>
                     
                     {verificationStatus === "success" && verificationMessage && (
-                      <Alert variant="success" className="bg-green-50 border-green-200">
+                      <Alert className="bg-green-50 border-green-200">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
                         <AlertTitle className="text-green-800">Success</AlertTitle>
                         <AlertDescription className="text-green-700">
@@ -309,7 +309,13 @@ const DocumentVerification = () => {
                 <p className="text-muted-foreground mb-6">
                   Upload your identity documents to verify your account and increase your trust score
                 </p>
-                <Button variant="outline" onClick={() => document.querySelector('[data-value="upload"]')?.click()}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const uploadTab = document.querySelector('[data-value="upload"]') as HTMLElement;
+                    if (uploadTab) uploadTab.click();
+                  }}
+                >
                   Upload Documents
                 </Button>
               </div>
@@ -322,3 +328,4 @@ const DocumentVerification = () => {
 };
 
 export default DocumentVerification;
+
