@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, CheckCircle, XCircle, Upload, FileCheck } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Upload, FileCheck, Camera, UserCheck } from "lucide-react";
 import { verifyDocument } from "@/services/documentService";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const Settings = () => {
   const { user, updateUser } = useAuth();
@@ -30,13 +30,44 @@ const Settings = () => {
   const [aadharStatus, setAadharStatus] = useState<"idle" | "verified" | "rejected">("idle");
   const [taxReturnStatus, setTaxReturnStatus] = useState<"idle" | "verified" | "rejected">("idle");
   const [verificationMessage, setVerificationMessage] = useState("");
+  
+  // Selfie KYC states
+  const [showCamera, setShowCamera] = useState(false);
+  const [selfieImage, setSelfieImage] = useState<string | null>(null);
+  const [selfieStatus, setSelfieStatus] = useState<"idle" | "verified" | "rejected">("idle");
+  const [capturingSelfie, setCapturingSelfie] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (user) {
       setName(user.name || "");
       setPhoneNumber(user.phoneNumber || "");
+      // Check if user is already verified
+      if (user.isVerified) {
+        setSelfieStatus("verified");
+      }
     }
   }, [user]);
+
+  // Clean up camera stream when component unmounts or camera is hidden
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  // Stop camera when showCamera changes to false
+  useEffect(() => {
+    if (!showCamera && streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  }, [showCamera]);
 
   const handleUpdateProfile = async () => {
     if (!user) return;
@@ -198,6 +229,118 @@ const Settings = () => {
     navigate("/document-verification");
   };
 
+  // Start camera for selfie KYC
+  const startCamera = async () => {
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          streamRef.current = stream;
+          setShowCamera(true);
+        }
+      } else {
+        toast({
+          title: "Camera access failed",
+          description: "Your browser doesn't support camera access or permission was denied.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error accessing camera:", error);
+      toast({
+        title: "Camera access denied",
+        description: "Please allow camera access to complete KYC verification.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Capture selfie from camera
+  const captureSelfie = () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext('2d');
+      if (context) {
+        canvasRef.current.width = videoRef.current.videoWidth;
+        canvasRef.current.height = videoRef.current.videoHeight;
+        context.drawImage(videoRef.current, 0, 0, videoRef.current.videoWidth, videoRef.current.videoHeight);
+        
+        const imageData = canvasRef.current.toDataURL('image/png');
+        setSelfieImage(imageData);
+        
+        // Stop the camera after capturing
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+        setShowCamera(false);
+      }
+    }
+  };
+
+  // Verify selfie for KYC
+  const handleVerifySelfie = async () => {
+    if (!selfieImage || !user) return;
+    
+    setCapturingSelfie(true);
+    
+    try {
+      // Convert base64 to blob for FormData
+      const response = await fetch(selfieImage);
+      const blob = await response.blob();
+      
+      const formData = new FormData();
+      formData.append('document', blob, 'selfie.png');
+      formData.append('type', 'selfie');
+      formData.append('userId', user.id);
+      
+      const result = await verifyDocument(formData);
+      
+      if (result.verified) {
+        setSelfieStatus("verified");
+        setVerificationMessage("Selfie verification successful. Your account is now verified.");
+        
+        // Update user trust score and verification status
+        await updateUser({
+          ...user,
+          trustScore: Math.min(user.trustScore + 20, 100),
+          isVerified: true
+        });
+        
+        toast({
+          title: "KYC completed",
+          description: "Your identity has been verified successfully.",
+          duration: 5000,
+        });
+      } else {
+        setSelfieStatus("rejected");
+        setVerificationMessage("Selfie verification failed. Please try again with better lighting and a clear face image.");
+        
+        toast({
+          title: "Verification failed",
+          description: result.message || "We couldn't verify your identity. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error verifying selfie:", error);
+      toast({
+        title: "Verification error",
+        description: error.message || "There was an error verifying your identity.",
+        variant: "destructive",
+      });
+    } finally {
+      setCapturingSelfie(false);
+    }
+  };
+
+  // Reset selfie and restart camera
+  const retakeSelfie = () => {
+    setSelfieImage(null);
+    setSelfieStatus("idle");
+    startCamera();
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <AppSidebar />
@@ -214,7 +357,8 @@ const Settings = () => {
           <Tabs defaultValue="profile" className="w-full">
             <TabsList className="w-full mb-6">
               <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
-              <TabsTrigger value="documents" className="flex-1">KYC Documents</TabsTrigger>
+              <TabsTrigger value="kyc" className="flex-1">KYC Verification</TabsTrigger>
+              <TabsTrigger value="documents" className="flex-1">Documents</TabsTrigger>
               <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
               <TabsTrigger value="notifications" className="flex-1">Notifications</TabsTrigger>
             </TabsList>
@@ -229,6 +373,35 @@ const Settings = () => {
                 </CardHeader>
                 
                 <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4 mb-4">
+                    <Avatar className="h-16 w-16">
+                      {user?.isVerified ? (
+                        <div className="relative">
+                          <AvatarImage src={selfieImage || "/placeholder.svg"} alt={user?.name} />
+                          <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                          <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-0.5">
+                            <CheckCircle className="h-4 w-4" />
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <AvatarImage src={selfieImage || "/placeholder.svg"} alt={user?.name} />
+                          <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+                        </>
+                      )}
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{user?.name}</p>
+                      <p className="text-sm text-muted-foreground">{user?.phoneNumber}</p>
+                      {user?.isVerified && (
+                        <div className="flex items-center gap-1 text-green-600 text-xs mt-1">
+                          <UserCheck className="h-3 w-3" />
+                          <span>Verified</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <Input 
@@ -259,6 +432,111 @@ const Settings = () => {
                     Save Changes
                   </Button>
                 </CardFooter>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="kyc">
+              <Card>
+                <CardHeader>
+                  <CardTitle>KYC Verification</CardTitle>
+                  <CardDescription>
+                    Complete your identity verification to increase your trust score and access more features
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-6">
+                  {verificationMessage && (
+                    <Alert className={selfieStatus === "verified" ? "bg-green-50 border-green-200" : selfieStatus === "rejected" ? "bg-red-50 border-red-200" : ""}>
+                      <AlertTitle>
+                        {selfieStatus === "verified" ? "Verification successful" : "Verification failed"}
+                      </AlertTitle>
+                      <AlertDescription>{verificationMessage}</AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Selfie Verification</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Take a clear selfie to verify your identity. Make sure you're in a well-lit environment and your face is clearly visible.
+                    </p>
+                    
+                    <div className="border rounded-lg p-4">
+                      {showCamera ? (
+                        <div className="flex flex-col items-center">
+                          <div className="relative w-full max-w-md mb-4">
+                            <video 
+                              ref={videoRef} 
+                              autoPlay 
+                              playsInline 
+                              className="w-full h-auto rounded-lg border border-gray-200"
+                            />
+                            <div className="absolute top-0 left-0 right-0 bottom-0 flex items-center justify-center pointer-events-none">
+                              <div className="border-2 border-dashed border-white w-64 h-64 rounded-full opacity-50"></div>
+                            </div>
+                          </div>
+                          <Button onClick={captureSelfie}>
+                            <Camera className="h-4 w-4 mr-2" />
+                            Capture Selfie
+                          </Button>
+                        </div>
+                      ) : selfieImage ? (
+                        <div className="flex flex-col items-center">
+                          <div className="w-full max-w-md mb-4">
+                            <img 
+                              src={selfieImage} 
+                              alt="Your selfie" 
+                              className="w-full h-auto rounded-lg border border-gray-200" 
+                            />
+                          </div>
+                          <div className="flex space-x-3">
+                            <Button onClick={retakeSelfie} variant="outline">
+                              <Camera className="h-4 w-4 mr-2" />
+                              Retake
+                            </Button>
+                            <Button 
+                              onClick={handleVerifySelfie} 
+                              disabled={capturingSelfie || selfieStatus === "verified"}
+                            >
+                              {capturingSelfie ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : selfieStatus === "verified" ? (
+                                <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                              ) : (
+                                <UserCheck className="h-4 w-4 mr-2" />
+                              )}
+                              {selfieStatus === "verified" ? "Verified" : "Verify Identity"}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center py-8">
+                          <div className="bg-gray-100 p-6 rounded-full mb-4">
+                            <Camera className="h-10 w-10 text-gray-500" />
+                          </div>
+                          <h4 className="text-lg font-medium mb-2">Take a selfie</h4>
+                          <p className="text-sm text-center text-muted-foreground mb-4 max-w-md">
+                            Your selfie will be securely stored and used only for identity verification purposes
+                          </p>
+                          <Button onClick={startCamera}>
+                            <Camera className="h-4 w-4 mr-2" />
+                            Start Camera
+                          </Button>
+                        </div>
+                      )}
+                      <canvas ref={canvasRef} className="hidden"></canvas>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-700 mb-2">Why complete KYC verification?</h4>
+                    <ul className="text-sm space-y-1 text-blue-600">
+                      <li>• Increases your trust score by 20 points</li>
+                      <li>• Adds a verified badge to your profile</li>
+                      <li>• Unlock higher borrowing limits</li>
+                      <li>• Faster loan approvals</li>
+                    </ul>
+                  </div>
+                </CardContent>
               </Card>
             </TabsContent>
             
