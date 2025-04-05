@@ -14,6 +14,7 @@ export type Loan = {
   paidAt: string | null;
   borrowerName?: string;
   lenderName?: string;
+  borrowerTrustScore?: number; // Added missing property
 };
 
 export const createLoanRequest = async (
@@ -224,7 +225,7 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
     .from('loans')
     .select(`
       *,
-      borrower:profiles!borrower_id(name),
+      borrower:profiles!borrower_id(name, trust_score),
       lender:profiles!lender_id(name)
     `)
     .eq('id', loanId)
@@ -246,6 +247,7 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
     paidAt: data.paid_at,
     borrowerName: data.borrower?.name,
     lenderName: data.lender?.name,
+    borrowerTrustScore: data.borrower?.trust_score,
   };
 };
 

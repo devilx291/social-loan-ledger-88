@@ -9,9 +9,10 @@ export type AuthUser = {
   trustScore: number;
 };
 
-export const signUp = async (phoneNumber: string, name: string, otp: string) => {
+export const signUp = async (phoneNumber: string, name: string, password: string) => {
   const { data, error } = await supabase.auth.signUp({
     phone: phoneNumber,
+    password,
     options: {
       data: {
         name,
@@ -23,9 +24,10 @@ export const signUp = async (phoneNumber: string, name: string, otp: string) => 
   return data;
 };
 
-export const signIn = async (phoneNumber: string) => {
-  const { data, error } = await supabase.auth.signInWithOtp({
+export const signIn = async (phoneNumber: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
     phone: phoneNumber,
+    password,
   });
 
   if (error) throw error;

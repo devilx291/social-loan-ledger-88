@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +29,6 @@ const ApproveLoan = () => {
   
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState(() => {
-    // Default due date is 30 days from now
     return format(addDays(new Date(), 30), 'yyyy-MM-dd');
   });
   const [isApproving, setIsApproving] = useState(false);
@@ -73,7 +71,6 @@ const ApproveLoan = () => {
     }
   };
 
-  // Filter out user's own loan requests
   const filteredLoans = pendingLoans?.filter(loan => loan.borrowerId !== user?.id) || [];
 
   return (
@@ -164,7 +161,6 @@ const ApproveLoan = () => {
         )}
       </div>
 
-      {/* Approval Confirmation Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
