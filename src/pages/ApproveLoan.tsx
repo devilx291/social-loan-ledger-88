@@ -1,70 +1,80 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPendingLoans, approveLoan } from "@/services/loanService";
 import { TrustScoreBadge } from "@/components/TrustScoreBadge";
 import { useToast } from "@/components/ui/use-toast";
-import { getMockPendingLoans, approveLoan, Loan } from "@/services/mockData";
-import { User, HandHeart, Clock, AlertTriangle } from "lucide-react";
+import { AlertCircle, CheckCircle, Calendar, User } from "lucide-react";
+import { format, addDays } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const ApproveLoan = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [processingLoanId, setProcessingLoanId] = useState<string | null>(null);
+  const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState(() => {
+    // Default due date is 30 days from now
+    return format(addDays(new Date(), 30), 'yyyy-MM-dd');
+  });
+  const [isApproving, setIsApproving] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  const { data: pendingLoans, isLoading, refetch } = useQuery({
+    queryKey: ['pendingLoans'],
+    queryFn: getPendingLoans,
+  });
 
-  useEffect(() => {
-    const fetchPendingLoans = async () => {
-      if (user) {
-        try {
-          const data = await getMockPendingLoans(user.id);
-          setPendingLoans(data);
-        } catch (error) {
-          console.error("Failed to fetch pending loans", error);
-          toast({
-            title: "Error loading loans",
-            description: "Could not load pending loan requests. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
+  const handleApproveClick = (loanId: string) => {
+    setSelectedLoanId(loanId);
+    setIsDialogOpen(true);
+  };
 
-    fetchPendingLoans();
-  }, [user, toast]);
-
-  const handleApprove = async (loanId: string) => {
-    if (!user) return;
+  const handleApproveLoan = async () => {
+    if (!selectedLoanId || !user) return;
     
-    setProcessingLoanId(loanId);
+    setIsApproving(true);
     
     try {
-      await approveLoan(loanId, user.id);
-      
-      // Update local state
-      setPendingLoans(pendingLoans.filter(loan => loan.id !== loanId));
+      await approveLoan(selectedLoanId, user.id, dueDate);
       
       toast({
         title: "Loan approved",
-        description: "You have successfully approved the loan request.",
+        description: "You have successfully funded this loan",
       });
-    } catch (error) {
+      
+      refetch();
+      setIsDialogOpen(false);
+    } catch (error: any) {
       console.error("Failed to approve loan", error);
       toast({
         title: "Approval failed",
-        description: "There was an error approving the loan. Please try again.",
+        description: error.message || "There was an error approving this loan. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setProcessingLoanId(null);
+      setIsApproving(false);
     }
   };
+
+  // Filter out user's own loan requests
+  const filteredLoans = pendingLoans?.filter(loan => loan.borrowerId !== user?.id) || [];
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -74,98 +84,148 @@ const ApproveLoan = () => {
         <header className="mb-8">
           <h1 className="text-3xl font-bold">Approve Loans</h1>
           <p className="text-muted-foreground">
-            Review and fund loan requests from community members
+            Help community members by funding their emergency loan requests
           </p>
         </header>
 
-        <div className="max-w-4xl mx-auto">
-          {isLoading ? (
-            <div className="flex justify-center p-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-            </div>
-          ) : pendingLoans.length > 0 ? (
-            <div className="space-y-6">
-              {pendingLoans.map(loan => (
-                <Card key={loan.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="p-6">
-                      <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-primary/10 p-2 rounded-full">
-                            <User className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold">{loan.borrowerName}</h3>
-                            <TrustScoreBadge score={loan.borrowerTrustScore} />
-                          </div>
-                        </div>
-                        
-                        <div className="text-center md:text-right">
-                          <p className="text-2xl font-bold">${loan.amount}</p>
-                          <p className="text-sm text-muted-foreground">Requested on {new Date(loan.requestedDate).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-muted p-4 rounded-md mb-4">
-                        <h4 className="font-medium mb-1">Loan Purpose:</h4>
-                        <p>{loan.purpose}</p>
-                      </div>
-                      
-                      <div className="flex flex-col sm:flex-row justify-between gap-4 items-center">
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>30 day repayment period</span>
-                        </div>
-                        
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="outline"
-                            disabled={!!processingLoanId}
-                            className="flex items-center space-x-2"
-                          >
-                            <AlertTriangle className="h-4 w-4" />
-                            <span>Decline</span>
-                          </Button>
-                          
-                          <Button
-                            onClick={() => handleApprove(loan.id)}
-                            disabled={processingLoanId === loan.id}
-                            className="flex items-center space-x-2"
-                          >
-                            {processingLoanId === loan.id ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-b-transparent" />
-                                <span>Processing...</span>
-                              </>
-                            ) : (
-                              <>
-                                <HandHeart className="h-4 w-4" />
-                                <span>Approve</span>
-                              </>
-                            )}
-                          </Button>
-                        </div>
+        {isLoading ? (
+          <div className="flex justify-center my-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : filteredLoans.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredLoans.map((loan) => (
+              <Card key={loan.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex justify-between items-center">
+                    ₹{loan.amount}
+                    {loan.borrowerTrustScore !== undefined && (
+                      <TrustScoreBadge score={loan.borrowerTrustScore} />
+                    )}
+                  </CardTitle>
+                  <CardDescription className="line-clamp-2">
+                    {loan.purpose}
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center text-sm">
+                      <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <div>
+                        <p className="text-muted-foreground">Borrower</p>
+                        <p>{loan.borrowerName || 'Anonymous'}</p>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <div className="mb-4 mx-auto bg-muted rounded-full w-16 h-16 flex items-center justify-center">
-                  <Clock className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h2 className="text-xl font-semibold mb-2">No pending loan requests</h2>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  There are currently no pending loan requests. Check back later or visit the dashboard to see your lending activity.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                    
+                    <div className="flex items-center text-sm">
+                      <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <div>
+                        <p className="text-muted-foreground">Requested On</p>
+                        <p>{format(new Date(loan.createdAt), 'MMM d, yyyy')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+                
+                <CardFooter>
+                  <div className="w-full space-y-2">
+                    <Button 
+                      className="w-full"
+                      onClick={() => handleApproveClick(loan.id)}
+                    >
+                      Fund This Request
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => navigate(`/loans/${loan.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+              <h2 className="text-xl font-semibold mb-2">No Pending Requests</h2>
+              <p className="text-muted-foreground text-center max-w-md mb-4">
+                There are currently no pending loan requests from other users. Check back later or explore other sections.
+              </p>
+              <Button onClick={() => navigate('/dashboard')}>
+                Back to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {/* Approval Confirmation Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Loan Approval</DialogTitle>
+            <DialogDescription>
+              You are about to fund this emergency loan request. Please review the details and confirm.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                min={format(addDays(new Date(), 7), 'yyyy-MM-dd')}
+                max={format(addDays(new Date(), 60), 'yyyy-MM-dd')}
+              />
+              <p className="text-sm text-muted-foreground">
+                Set a reasonable due date between 7 and 60 days from today.
+              </p>
+            </div>
+            
+            <div className="bg-muted p-3 rounded-md">
+              <h4 className="font-medium mb-2">By approving this loan:</h4>
+              <ul className="text-sm space-y-1">
+                <li className="flex items-start">
+                  <CheckCircle className="h-4 w-4 mr-2 mt-0.5 text-green-500" />
+                  <span>You agree to fund this emergency loan</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="h-4 w-4 mr-2 mt-0.5 text-green-500" />
+                  <span>This transaction will be recorded on the blockchain ledger</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="h-4 w-4 mr-2 mt-0.5 text-green-500" />
+                  <span>Borrower's trust score will increase upon repayment</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDialogOpen(false)}
+              disabled={isApproving}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleApproveLoan}
+              disabled={isApproving}
+            >
+              {isApproving ? "Processing..." : "Confirm & Fund"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

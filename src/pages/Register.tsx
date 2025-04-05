@@ -16,14 +16,15 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   
-  const { register } = useAuth();
+  const { register, requestOtp } = useAuth();
   const navigate = useNavigate();
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     
-    if (!name) {
+    // Basic validation
+    if (!name.trim()) {
       setError("Please enter your name");
       return;
     }
@@ -36,11 +37,10 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      // Simulate OTP sending
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await requestOtp(phoneNumber);
       setStep(2);
-    } catch (err) {
-      setError("Failed to send OTP. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -50,8 +50,8 @@ const Register = () => {
     e.preventDefault();
     setError("");
     
-    if (!otp || otp.length !== 6) {
-      setError("Please enter a valid 6-digit OTP");
+    if (!otp || otp.length < 6) {
+      setError("Please enter a valid OTP");
       return;
     }
     
@@ -60,8 +60,8 @@ const Register = () => {
     try {
       await register(name, phoneNumber, otp);
       navigate("/dashboard");
-    } catch (err) {
-      setError("Registration failed. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +86,7 @@ const Register = () => {
             <CardDescription>
               {step === 1 
                 ? "Enter your details to create an account" 
-                : "Enter the 6-digit code sent to your phone"}
+                : "Verify your phone number with the OTP sent"}
             </CardDescription>
           </CardHeader>
           
@@ -124,6 +124,9 @@ const Register = () => {
                       disabled={isLoading}
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Format: +1XXXXXXXXXX (include country code)
+                    </p>
                   </div>
                   
                   <Button 
@@ -131,7 +134,7 @@ const Register = () => {
                     className="w-full" 
                     disabled={isLoading}
                   >
-                    {isLoading ? "Sending..." : "Send OTP"}
+                    {isLoading ? "Sending..." : "Continue"}
                   </Button>
                 </div>
               </form>
@@ -143,7 +146,7 @@ const Register = () => {
                     <Input
                       id="otp"
                       type="text"
-                      placeholder="Enter 6-digit OTP"
+                      placeholder="Enter OTP"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
                       maxLength={6}
@@ -158,7 +161,7 @@ const Register = () => {
                       className="text-brand-primary hover:underline"
                       onClick={() => setStep(1)}
                     >
-                      Change your details
+                      Edit your information
                     </button>
                   </div>
                   
@@ -167,7 +170,7 @@ const Register = () => {
                     className="w-full" 
                     disabled={isLoading}
                   >
-                    {isLoading ? "Creating Account..." : "Create Account"}
+                    {isLoading ? "Registering..." : "Create Account"}
                   </Button>
                 </div>
               </form>

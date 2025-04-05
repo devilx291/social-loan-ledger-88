@@ -1,5 +1,5 @@
 
-import { Home, PiggyBank, History, LogOut, UserCheck, Menu } from "lucide-react";
+import { Home, PiggyBank, History, LogOut, UserCheck, Menu, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
@@ -88,6 +88,15 @@ export function AppSidebar() {
                   <div className="flex items-center space-x-3 cursor-pointer">
                     <History className="h-5 w-5" />
                     <span>Loan History</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild onClick={() => navigate("/ledger")}>
+                  <div className="flex items-center space-x-3 cursor-pointer">
+                    <FileText className="h-5 w-5" />
+                    <span>Blockchain Ledger</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>

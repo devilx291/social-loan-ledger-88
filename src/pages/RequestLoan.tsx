@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { TrustScoreBadge } from "@/components/TrustScoreBadge";
 import { useToast } from "@/components/ui/use-toast";
 import { Slider } from "@/components/ui/slider";
-import { requestLoan } from "@/services/mockData";
+import { createLoanRequest } from "@/services/loanService";
 
 const RequestLoan = () => {
   const { user } = useAuth();
@@ -41,24 +41,31 @@ const RequestLoan = () => {
       return;
     }
     
+    if (!user) {
+      toast({
+        title: "Authentication error",
+        description: "You must be logged in to request a loan",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
-      if (user) {
-        await requestLoan(user.id, amount, purpose);
+      await createLoanRequest(user.id, amount, purpose);
         
-        toast({
-          title: "Loan request submitted",
-          description: "Your loan request has been successfully submitted and is pending approval.",
-        });
+      toast({
+        title: "Loan request submitted",
+        description: "Your loan request has been successfully submitted and is pending approval.",
+      });
         
-        navigate("/dashboard");
-      }
-    } catch (error) {
+      navigate("/dashboard");
+    } catch (error: any) {
       console.error("Failed to submit loan request", error);
       toast({
         title: "Request failed",
-        description: "There was an error submitting your loan request. Please try again.",
+        description: error.message || "There was an error submitting your loan request. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -104,7 +111,7 @@ const RequestLoan = () => {
                     
                     <div className="mt-4">
                       <p className="text-sm mb-1">
-                        Maximum loan amount: <strong>${maxAmount}</strong>
+                        Maximum loan amount: <strong>₹{maxAmount}</strong>
                       </p>
                       <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                         <div 
@@ -119,7 +126,7 @@ const RequestLoan = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <Label htmlFor="amount">Loan Amount</Label>
-                      <span className="font-semibold">${amount}</span>
+                      <span className="font-semibold">₹{amount}</span>
                     </div>
                     <Slider
                       id="amount"
@@ -131,8 +138,8 @@ const RequestLoan = () => {
                       className="my-4"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>$50</span>
-                      <span>${maxAmount}</span>
+                      <span>₹50</span>
+                      <span>₹{maxAmount}</span>
                     </div>
                   </div>
                   

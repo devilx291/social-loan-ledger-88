@@ -1,54 +1,29 @@
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppSidebar } from "@/components/AppSidebar";
-import { PiggyBank, TrendingUp, Clock, CheckCircle, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrustScoreBadge } from "@/components/TrustScoreBadge";
-import { getMockUserLoans, type Loan } from "@/services/mockData";
+import { getUserLoans, Loan } from "@/services/loanService";
+import { PiggyBank, ArrowRight, Calendar, TrendingUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { format } from "date-fns";
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [loans, setLoans] = useState<Loan[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchLoans = async () => {
-      if (user) {
-        try {
-          const data = await getMockUserLoans(user.id);
-          setLoans(data);
-        } catch (error) {
-          console.error("Failed to fetch loans", error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchLoans();
-  }, [user]);
-
-  // Calculate loan stats
-  const stats = {
-    pendingRequests: loans.filter(loan => loan.status === "pending" && loan.borrowerId === user?.id).length,
-    activeLoans: loans.filter(loan => loan.status === "approved").length,
-    repaidLoans: loans.filter(loan => loan.status === "repaid").length,
-    totalBorrowed: loans
-      .filter(loan => loan.borrowerId === user?.id && (loan.status === "approved" || loan.status === "repaid" || loan.status === "overdue"))
-      .reduce((sum, loan) => sum + loan.amount, 0),
-    totalLent: loans
-      .filter(loan => loan.lenderId === user?.id && (loan.status === "approved" || loan.status === "repaid" || loan.status === "overdue"))
-      .reduce((sum, loan) => sum + loan.amount, 0)
-  };
-
-  // Get recent loans
-  const recentLoans = [...loans].sort((a, b) => 
-    new Date(b.requestedDate).getTime() - new Date(a.requestedDate).getTime()
-  ).slice(0, 3);
+  
+  const { data: loans, isLoading } = useQuery({
+    queryKey: ['userLoans', user?.id],
+    queryFn: () => (user ? getUserLoans(user.id) : Promise.resolve([])),
+    enabled: !!user,
+  });
+  
+  const pendingLoans = loans?.filter(loan => loan.status === 'pending' && loan.borrowerId === user?.id) || [];
+  const approvedLoans = loans?.filter(loan => loan.status === 'approved' && loan.borrowerId === user?.id) || [];
+  const lentLoans = loans?.filter(loan => loan.lenderId === user?.id) || [];
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -58,171 +33,297 @@ const Dashboard = () => {
         <header className="mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {user?.name}!
+            Welcome back, {user?.name}
           </p>
         </header>
 
-        {/* Trust Score Card */}
-        <div className="mb-8">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+          {/* Trust Score Card */}
           <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Trust Score</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold mb-2">Your Trust Score</h2>
-                  <div className="flex items-center">
-                    <div className="mr-4">
-                      <TrustScoreBadge score={user?.trustScore || 0} />
-                    </div>
-                    <p className="text-muted-foreground">
-                      Based on your loan history and referrals
-                    </p>
-                  </div>
+                  <p className="text-4xl font-bold">{user?.trustScore}</p>
+                  <p className="text-sm text-muted-foreground">out of 100</p>
                 </div>
-                <Button onClick={() => navigate("/request-loan")}>Request a Loan</Button>
+                <TrustScoreBadge score={user?.trustScore || 0} />
+              </div>
+              <div className="mt-4">
+                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-brand-primary rounded-full" 
+                    style={{ width: `${user?.trustScore || 0}%` }}
+                  ></div>
+                </div>
               </div>
             </CardContent>
+            <CardFooter className="pt-2">
+              <p className="text-xs text-muted-foreground">
+                Your trust score increases as you repay loans on time.
+              </p>
+            </CardFooter>
+          </Card>
+
+          {/* Quick Actions Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button 
+                className="w-full justify-between" 
+                onClick={() => navigate('/request-loan')}
+              >
+                Request a Loan
+                <PiggyBank className="h-4 w-4 ml-2" />
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-between"
+                onClick={() => navigate('/approve-loans')}
+              >
+                Fund a Loan
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Summary Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Loan Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Pending Requests</span>
+                <span className="font-medium">{pendingLoans.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Active Loans</span>
+                <span className="font-medium">{approvedLoans.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Loans You've Funded</span>
+                <span className="font-medium">{lentLoans.length}</span>
+              </div>
+            </CardContent>
+            <CardFooter className="pt-2">
+              <Button 
+                variant="ghost" 
+                className="w-full" 
+                onClick={() => navigate('/loan-history')}
+              >
+                View Loan History
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </CardFooter>
           </Card>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Borrowed
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <PiggyBank className="h-5 w-5 text-brand-primary mr-2" />
-                <div className="text-2xl font-bold">${stats.totalBorrowed}</div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Lent
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <TrendingUp className="h-5 w-5 text-brand-secondary mr-2" />
-                <div className="text-2xl font-bold">${stats.totalLent}</div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Active Loans
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <Clock className="h-5 w-5 text-amber-500 mr-2" />
-                <div className="text-2xl font-bold">{stats.activeLoans}</div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Repaid Loans
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center">
-                <CheckCircle className="h-5 w-5 text-trust-high mr-2" />
-                <div className="text-2xl font-bold">{stats.repaidLoans}</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Loans */}
+        {/* Active Loans Section */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Recent Loans</h2>
-            <Button variant="outline" size="sm" onClick={() => navigate("/loan-history")}>
-              View All
-            </Button>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Your Active Loans</h2>
+            {approvedLoans.length > 0 && (
+              <Button variant="ghost" onClick={() => navigate('/loan-history')}>
+                View All <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            )}
           </div>
-          
+
           {isLoading ? (
-            <div className="flex justify-center p-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+              <p>Loading loan data...</p>
             </div>
-          ) : recentLoans.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
-              {recentLoans.map(loan => (
-                <Card key={loan.id}>
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center">
-                        {loan.status === "pending" && <Clock className="h-5 w-5 text-amber-500 mr-2" />}
-                        {loan.status === "approved" && <CheckCircle className="h-5 w-5 text-blue-500 mr-2" />}
-                        {loan.status === "repaid" && <CheckCircle className="h-5 w-5 text-trust-high mr-2" />}
-                        {loan.status === "overdue" && <AlertTriangle className="h-5 w-5 text-trust-low mr-2" />}
-                        
+          ) : approvedLoans.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {approvedLoans.slice(0, 3).map((loan) => (
+                <Card key={loan.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">₹{loan.amount}</CardTitle>
+                        <CardDescription className="line-clamp-1">
+                          {loan.purpose}
+                        </CardDescription>
+                      </div>
+                      <div className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded">
+                        Active
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-start">
+                        <Calendar className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
                         <div>
+                          <p className="text-muted-foreground">Due Date</p>
                           <p className="font-medium">
-                            {loan.borrowerId === user?.id 
-                              ? `Borrowed $${loan.amount}`
-                              : `Lent $${loan.amount} to ${loan.borrowerName}`}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(loan.requestedDate).toLocaleDateString()} - {loan.purpose}
+                            {loan.dueDate ? format(new Date(loan.dueDate), 'MMM d, yyyy') : 'Not set'}
                           </p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          loan.status === "pending" ? "bg-amber-100 text-amber-800" :
-                          loan.status === "approved" ? "bg-blue-100 text-blue-800" :
-                          loan.status === "repaid" ? "bg-green-100 text-green-800" :
-                          loan.status === "overdue" ? "bg-red-100 text-red-800" :
-                          "bg-gray-100 text-gray-800"
-                        }`}>
-                          {loan.status.charAt(0).toUpperCase() + loan.status.slice(1)}
-                        </span>
+                      <div className="flex items-start">
+                        <TrendingUp className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
+                        <div>
+                          <p className="text-muted-foreground">Lender</p>
+                          <p className="font-medium">{loan.lenderName || 'Anonymous'}</p>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
+                  <CardFooter>
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => navigate(`/loans/${loan.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
             </div>
           ) : (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">No loan history yet</p>
-                <Button className="mt-4" onClick={() => navigate("/request-loan")}>
-                  Request Your First Loan
-                </Button>
+            <Card className="bg-muted">
+              <CardContent className="py-8">
+                <div className="text-center">
+                  <div className="bg-muted-foreground/20 h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <PiggyBank className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="font-medium mb-2">No Active Loans</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    You don't have any active loans at the moment.
+                  </p>
+                  <Button onClick={() => navigate('/request-loan')}>
+                    Request a Loan
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* Pending Requests Alert */}
-        {stats.pendingRequests > 0 && (
-          <Card className="bg-amber-50 border-amber-200">
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <Clock className="h-5 w-5 text-amber-500 mr-2" />
-                <p>
-                  You have <strong>{stats.pendingRequests}</strong> pending loan {stats.pendingRequests === 1 ? 'request' : 'requests'}
-                </p>
-                <Button variant="link" onClick={() => navigate("/loan-history")} className="ml-auto">
-                  View Requests
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Pending Loan Requests */}
+        {pendingLoans.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Your Pending Requests</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {pendingLoans.map((loan) => (
+                <Card key={loan.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">₹{loan.amount}</CardTitle>
+                        <CardDescription className="line-clamp-1">
+                          {loan.purpose}
+                        </CardDescription>
+                      </div>
+                      <div className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded">
+                        Pending
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-start">
+                        <Calendar className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
+                        <div>
+                          <p className="text-muted-foreground">Requested On</p>
+                          <p className="font-medium">
+                            {format(new Date(loan.createdAt), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => navigate(`/loans/${loan.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Loans You've Funded */}
+        {lentLoans.length > 0 && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Loans You've Funded</h2>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {lentLoans.slice(0, 3).map((loan) => (
+                <Card key={loan.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">₹{loan.amount}</CardTitle>
+                        <CardDescription className="line-clamp-1">
+                          {loan.borrowerName || 'Anonymous'}
+                        </CardDescription>
+                      </div>
+                      <div className={`text-xs px-2 py-1 rounded ${
+                        loan.status === 'approved' 
+                          ? 'bg-amber-100 text-amber-700' 
+                          : loan.status === 'paid' 
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {loan.status === 'approved' ? 'Active' : 
+                         loan.status === 'paid' ? 'Repaid' : 'Overdue'}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pb-2">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-start">
+                        <Calendar className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />
+                        <div>
+                          <p className="text-muted-foreground">
+                            {loan.status === 'paid' ? 'Repaid On' : 'Due Date'}
+                          </p>
+                          <p className="font-medium">
+                            {loan.status === 'paid' && loan.paidAt 
+                              ? format(new Date(loan.paidAt), 'MMM d, yyyy')
+                              : loan.dueDate 
+                              ? format(new Date(loan.dueDate), 'MMM d, yyyy') 
+                              : 'Not set'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        {loan.status === 'paid' 
+                          ? <CheckCircle2 className="h-4 w-4 mr-2 mt-0.5 text-green-500" />
+                          : <AlertCircle className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground" />}
+                        <div>
+                          <p className="text-muted-foreground">Status</p>
+                          <p className="font-medium capitalize">{loan.status}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => navigate(`/loans/${loan.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

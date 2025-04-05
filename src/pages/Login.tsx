@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PiggyBank } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -15,13 +16,15 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   
-  const { login } = useAuth();
+  const { login, requestOtp } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     
+    // Basic validation
     if (!phoneNumber || phoneNumber.length < 10) {
       setError("Please enter a valid phone number");
       return;
@@ -30,11 +33,10 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      // Simulate OTP sending
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await requestOtp(phoneNumber);
       setStep(2);
-    } catch (err) {
-      setError("Failed to send OTP. Please try again.");
+    } catch (err: any) {
+      setError(err.message || "Failed to send OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -44,8 +46,8 @@ const Login = () => {
     e.preventDefault();
     setError("");
     
-    if (!otp || otp.length !== 6) {
-      setError("Please enter a valid 6-digit OTP");
+    if (!otp || otp.length < 6) {
+      setError("Please enter a valid OTP");
       return;
     }
     
@@ -54,8 +56,8 @@ const Login = () => {
     try {
       await login(phoneNumber, otp);
       navigate("/dashboard");
-    } catch (err) {
-      setError("Login failed. Please check your OTP and try again.");
+    } catch (err: any) {
+      setError(err.message || "Login failed. Please check your OTP and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +82,7 @@ const Login = () => {
             <CardDescription>
               {step === 1 
                 ? "Enter your phone number to receive a one-time password" 
-                : "Enter the 6-digit code sent to your phone"}
+                : "Enter the OTP sent to your phone"}
             </CardDescription>
           </CardHeader>
           
@@ -105,6 +107,9 @@ const Login = () => {
                       disabled={isLoading}
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Format: +1XXXXXXXXXX (include country code)
+                    </p>
                   </div>
                   
                   <Button 
@@ -124,7 +129,7 @@ const Login = () => {
                     <Input
                       id="otp"
                       type="text"
-                      placeholder="Enter 6-digit OTP"
+                      placeholder="Enter OTP"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
                       maxLength={6}

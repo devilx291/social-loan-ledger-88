@@ -9,13 +9,194 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      loans: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          borrower_id: string
+          created_at: string
+          due_date: string | null
+          id: string
+          lender_id: string | null
+          paid_at: string | null
+          purpose: string
+          status: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          borrower_id: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          lender_id?: string | null
+          paid_at?: string | null
+          purpose: string
+          status: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          borrower_id?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          lender_id?: string | null
+          paid_at?: string | null
+          purpose?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loans_borrower_id_fkey"
+            columns: ["borrower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loans_lender_id_fkey"
+            columns: ["lender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone_number: string | null
+          trust_score: number
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name: string
+          phone_number?: string | null
+          trust_score?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone_number?: string | null
+          trust_score?: number
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referred_id: string
+          referrer_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referred_id: string
+          referrer_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referred_id?: string
+          referrer_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_id_fkey"
+            columns: ["referred_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          curr_hash: string
+          id: string
+          loan_id: string | null
+          prev_hash: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          curr_hash: string
+          id?: string
+          loan_id?: string | null
+          prev_hash?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          curr_hash?: string
+          id?: string
+          loan_id?: string | null
+          prev_hash?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_transaction_hash: {
+        Args: {
+          p_prev_hash: string
+          p_loan_id: string
+          p_user_id: string
+          p_amount: number
+          p_transaction_type: string
+          p_timestamp: string
+        }
+        Returns: string
+      }
+      update_trust_score: {
+        Args: {
+          user_id: string
+          score_change: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
