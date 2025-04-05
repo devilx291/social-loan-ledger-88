@@ -20,6 +20,7 @@ import Ledger from "./pages/Ledger";
 import LoanDetails from "./pages/LoanDetails";
 import CreditAssessment from "./pages/CreditAssessment";
 import Settings from "./pages/Settings";
+import HelpSupport from "./pages/HelpSupport";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/loans/:id" element={<ProtectedRoute><LoanDetails /></ProtectedRoute>} />
               <Route path="/credit-assessment" element={<ProtectedRoute><CreditAssessment /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/help-support" element={<ProtectedRoute><HelpSupport /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </SidebarProvider>
