@@ -1,254 +1,419 @@
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { AppSidebar } from "@/components/AppSidebar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Camera, Link, Share2, UserCheck } from "lucide-react";
-import { TrustScoreBadge } from "@/components/TrustScoreBadge";
-import { toast } from "@/hooks/use-toast";
-import { AppSidebar } from "@/components/AppSidebar";
-import { updateUserTrustScore } from "@/services/authService";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2, CheckCircle, XCircle, Upload, FileCheck } from "lucide-react";
+import { verifyDocument } from "@/services/documentService";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const KYCVerification = () => {
+const Settings = () => {
   const { user, updateUser } = useAuth();
-  const [isVerified, setIsVerified] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isCameraAccessDenied, setIsCameraAccessDenied] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  // Check if user is verified
-  useEffect(() => {
-    if (user?.isVerified) {
-      setIsVerified(true);
-    }
-  }, [user]);
-
-  const startCapture = async () => {
-    try {
-      setIsCapturing(true);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
-      setIsCameraAccessDenied(false);
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      setIsCameraAccessDenied(true);
-      toast({
-        title: "Camera access denied",
-        description: "Please allow camera access to complete KYC verification.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const completeVerification = async () => {
-    try {
-      // Stop media tracks
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
-      
-      setIsCapturing(false);
-      setIsVerified(true);
-      
-      // Update user verification status
-      await updateUser({ ...user, isVerified: true });
-      
-      // Increase trust score for verification
-      if (user) {
-        await updateUserTrustScore(user.id, user.trustScore + 5);
-      }
-      
-      toast({
-        title: "Verification successful!",
-        description: "Your account has been verified.",
-      });
-    } catch (error) {
-      console.error("Verification error:", error);
-      toast({
-        title: "Verification failed",
-        description: "Please try again later.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const cancelCapture = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    setIsCapturing(false);
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>KYC Verification</CardTitle>
-          {isVerified && (
-            <Badge className="bg-green-500 text-white flex gap-1 items-center">
-              <UserCheck className="h-3 w-3" />
-              Verified
-            </Badge>
-          )}
-        </div>
-        <CardDescription>
-          Complete your identity verification to enhance your trust score and unlock additional features
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isVerified ? (
-          <div className="text-center py-6">
-            <UserCheck className="h-16 w-16 mx-auto text-green-500 mb-4" />
-            <h3 className="text-xl font-medium">KYC Verification Completed</h3>
-            <p className="text-muted-foreground mt-2">Your identity has been verified successfully.</p>
-          </div>
-        ) : isCapturing ? (
-          <div className="space-y-4">
-            <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
-              {stream && (
-                <video
-                  autoPlay
-                  playsInline
-                  ref={(videoElement) => {
-                    if (videoElement && stream) {
-                      videoElement.srcObject = stream;
-                    }
-                  }}
-                  className="w-full h-full object-cover"
-                />
-              )}
-              {isCameraAccessDenied && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                  <p className="text-muted-foreground">Camera access denied</p>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={cancelCapture}>Cancel</Button>
-              <Button onClick={completeVerification}>Capture & Verify</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-6">
-            <Camera className="h-16 w-16 mx-auto text-primary mb-4" />
-            <h3 className="text-xl font-medium">Start KYC Verification</h3>
-            <p className="text-muted-foreground mt-2">We'll need access to your camera to take a photo for verification.</p>
-            <Button className="mt-4" onClick={startCapture}>
-              <Camera className="mr-2 h-4 w-4" />
-              Start Verification
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
-const ReferralSystem = () => {
-  const { user } = useAuth();
-  const [referralLink, setReferralLink] = useState("");
+  const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Document upload states
+  const [aadharFile, setAadharFile] = useState<File | null>(null);
+  const [taxReturnFile, setTaxReturnFile] = useState<File | null>(null);
+  const [uploadingAadhar, setUploadingAadhar] = useState(false);
+  const [uploadingTaxReturn, setUploadingTaxReturn] = useState(false);
+  const [aadharStatus, setAadharStatus] = useState<"idle" | "verified" | "rejected">("idle");
+  const [taxReturnStatus, setTaxReturnStatus] = useState<"idle" | "verified" | "rejected">("idle");
+  const [verificationMessage, setVerificationMessage] = useState("");
 
   useEffect(() => {
     if (user) {
-      // Generate referral link using the user ID
-      const link = `${window.location.origin}/register?ref=${user.id}`;
-      setReferralLink(link);
+      setName(user.name || "");
+      setPhoneNumber(user.phoneNumber || "");
     }
   }, [user]);
 
-  const copyReferralLink = () => {
-    navigator.clipboard.writeText(referralLink);
-    toast({
-      title: "Link copied!",
-      description: "Referral link copied to clipboard.",
-    });
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      await updateUser({
+        name,
+        phoneNumber,
+      });
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile information has been updated successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      
+      toast({
+        title: "Update failed",
+        description: error.message || "There was an error updating your profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAadharUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setAadharFile(file);
+    }
+  };
+
+  const handleTaxReturnUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setTaxReturnFile(file);
+    }
+  };
+
+  const handleVerifyAadhar = async () => {
+    if (!aadharFile || !user) return;
+    
+    setUploadingAadhar(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('document', aadharFile);
+      formData.append('type', 'aadhar');
+      formData.append('userId', user.id);
+      
+      const result = await verifyDocument(formData);
+      
+      if (result.verified) {
+        setAadharStatus("verified");
+        setVerificationMessage("Aadhar card successfully verified. Your trust score has been updated.");
+        
+        // Update user trust score if document was verified
+        if (user.trustScore < 100) {
+          await updateUser({
+            ...user,
+            trustScore: Math.min(user.trustScore + 15, 100)
+          });
+        }
+        
+        toast({
+          title: "Document verified",
+          description: "Aadhar card has been successfully verified.",
+        });
+      } else {
+        setAadharStatus("rejected");
+        setVerificationMessage("Aadhar card verification failed. This may affect your trust score.");
+        
+        // Set trust score to zero if forgery is detected
+        await updateUser({
+          ...user,
+          trustScore: 0
+        });
+        
+        toast({
+          title: "Verification failed",
+          description: "Document appears to be invalid or forged.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error verifying document:", error);
+      toast({
+        title: "Verification error",
+        description: error.message || "There was an error verifying your document.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAadhar(false);
+    }
+  };
+
+  const handleVerifyTaxReturn = async () => {
+    if (!taxReturnFile || !user) return;
+    
+    setUploadingTaxReturn(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('document', taxReturnFile);
+      formData.append('type', 'taxReturn');
+      formData.append('userId', user.id);
+      
+      const result = await verifyDocument(formData);
+      
+      if (result.verified) {
+        setTaxReturnStatus("verified");
+        setVerificationMessage("Income Tax Return successfully verified. Your trust score has been updated.");
+        
+        // Update user trust score if document was verified
+        if (user.trustScore < 100) {
+          await updateUser({
+            ...user,
+            trustScore: Math.min(user.trustScore + 15, 100)
+          });
+        }
+        
+        toast({
+          title: "Document verified",
+          description: "Income Tax Return has been successfully verified.",
+        });
+      } else {
+        setTaxReturnStatus("rejected");
+        setVerificationMessage("Income Tax Return verification failed. This may affect your trust score.");
+        
+        // Set trust score to zero if forgery is detected
+        await updateUser({
+          ...user,
+          trustScore: 0
+        });
+        
+        toast({
+          title: "Verification failed",
+          description: "Document appears to be invalid or forged.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error verifying document:", error);
+      toast({
+        title: "Verification error",
+        description: error.message || "There was an error verifying your document.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingTaxReturn(false);
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Referral System</CardTitle>
-        <CardDescription>
-          Invite friends to join Social Loan Ledger. Both you and your referred friends will receive a trust score boost.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="bg-muted p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Link className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Your Referral Link</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={copyReferralLink}>
-              Copy
-            </Button>
-          </div>
-          <div className="mt-2 p-2 bg-background border rounded-md">
-            <p className="text-sm break-all">{referralLink}</p>
-          </div>
-        </div>
-        
-        <div className="rounded-lg border p-4">
-          <h3 className="font-medium mb-2 flex items-center">
-            <UserCheck className="h-4 w-4 mr-2" />
-            Referral Benefits
-          </h3>
-          <ul className="text-sm space-y-2">
-            <li className="flex">
-              <span className="text-muted-foreground mr-2">•</span>
-              <span>You get +3 trust score for each successful referral</span>
-            </li>
-            <li className="flex">
-              <span className="text-muted-foreground mr-2">•</span>
-              <span>Your friends get +2 trust score when they sign up</span>
-            </li>
-          </ul>
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <div className="flex items-center space-x-2">
-          <Share2 className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Share your link on social media to reach more people</span>
-        </div>
-      </CardFooter>
-    </Card>
-  );
-};
-
-const Settings = () => {
-  const { user } = useAuth();
-
-  if (!user) {
-    return <div>Loading...</div>;
-  }
-
-  return (
-    <div className="flex h-screen">
+    <div className="flex min-h-screen bg-gray-50">
       <AppSidebar />
-      <div className="flex-1 overflow-auto">
-        <div className="container max-w-4xl py-8">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold">Account Settings</h1>
-            <div className="flex items-center gap-2 mt-2">
-              <p className="text-muted-foreground">Trust Score:</p>
-              <TrustScoreBadge score={user.trustScore} />
-            </div>
-          </div>
+      
+      <div className="flex-1 p-6">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your account settings and preferences
+          </p>
+        </header>
 
-          <Tabs defaultValue="kyc" className="w-full">
+        <div className="max-w-3xl">
+          <Tabs defaultValue="profile" className="w-full">
             <TabsList className="w-full mb-6">
-              <TabsTrigger value="kyc" className="flex-1">KYC Verification</TabsTrigger>
-              <TabsTrigger value="referral" className="flex-1">Referral System</TabsTrigger>
+              <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
+              <TabsTrigger value="documents" className="flex-1">Upload Documents</TabsTrigger>
+              <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
+              <TabsTrigger value="notifications" className="flex-1">Notifications</TabsTrigger>
             </TabsList>
-            <TabsContent value="kyc">
-              <KYCVerification />
+            
+            <TabsContent value="profile">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Profile Information</CardTitle>
+                  <CardDescription>
+                    Update your personal information and how we can contact you
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input 
+                      id="name" 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)} 
+                      placeholder="Your full name" 
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <Input 
+                      id="phoneNumber" 
+                      value={phoneNumber} 
+                      onChange={(e) => setPhoneNumber(e.target.value)} 
+                      placeholder="Your phone number" 
+                    />
+                  </div>
+                </CardContent>
+                
+                <CardFooter>
+                  <Button 
+                    onClick={handleUpdateProfile} 
+                    disabled={isLoading}
+                  >
+                    {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Save Changes
+                  </Button>
+                </CardFooter>
+              </Card>
             </TabsContent>
-            <TabsContent value="referral">
-              <ReferralSystem />
+            
+            <TabsContent value="documents">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upload Documents</CardTitle>
+                  <CardDescription>
+                    Upload and verify your identity and financial documents to improve your trust score
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent className="space-y-6">
+                  {verificationMessage && (
+                    <Alert className={aadharStatus === "verified" || taxReturnStatus === "verified" ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}>
+                      <AlertTitle>
+                        {aadharStatus === "verified" || taxReturnStatus === "verified" ? "Verification successful" : "Verification failed"}
+                      </AlertTitle>
+                      <AlertDescription>{verificationMessage}</AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Aadhar Card</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Upload your Aadhar card to verify your identity. This helps strengthen your trust score.
+                    </p>
+                    
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-1">
+                        <Label htmlFor="aadhar-upload" className="cursor-pointer">
+                          <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center hover:border-primary/50 transition-colors">
+                            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                            <span className="text-sm font-medium">
+                              {aadharFile ? aadharFile.name : "Click to upload Aadhar card"}
+                            </span>
+                            <span className="text-xs text-muted-foreground mt-1">
+                              PDF or image file, max 5MB
+                            </span>
+                          </div>
+                          <Input 
+                            id="aadhar-upload" 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*, application/pdf" 
+                            onChange={handleAadharUpload} 
+                          />
+                        </Label>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleVerifyAadhar} 
+                        disabled={!aadharFile || uploadingAadhar}
+                        className="min-w-[120px]"
+                      >
+                        {uploadingAadhar ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : aadharStatus === "verified" ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : aadharStatus === "rejected" ? (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        ) : (
+                          "Verify"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Income Tax Return</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Upload your latest Income Tax Return (ITR) to verify your financial status. This helps increase your borrowing capacity.
+                    </p>
+                    
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-1">
+                        <Label htmlFor="tax-return-upload" className="cursor-pointer">
+                          <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center hover:border-primary/50 transition-colors">
+                            <FileCheck className="h-8 w-8 text-muted-foreground mb-2" />
+                            <span className="text-sm font-medium">
+                              {taxReturnFile ? taxReturnFile.name : "Click to upload Income Tax Return"}
+                            </span>
+                            <span className="text-xs text-muted-foreground mt-1">
+                              PDF or image file, max 5MB
+                            </span>
+                          </div>
+                          <Input 
+                            id="tax-return-upload" 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*, application/pdf" 
+                            onChange={handleTaxReturnUpload} 
+                          />
+                        </Label>
+                      </div>
+                      
+                      <Button 
+                        onClick={handleVerifyTaxReturn} 
+                        disabled={!taxReturnFile || uploadingTaxReturn}
+                        className="min-w-[120px]"
+                      >
+                        {uploadingTaxReturn ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : taxReturnStatus === "verified" ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : taxReturnStatus === "rejected" ? (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        ) : (
+                          "Verify"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-700 mb-2">Why upload your documents?</h4>
+                    <ul className="text-sm space-y-1 text-blue-600">
+                      <li>• Verified documents can increase your trust score by up to 30 points</li>
+                      <li>• Higher trust scores allow you to borrow larger amounts</li>
+                      <li>• Documents are securely verified with blockchain technology</li>
+                      <li>• Forged or false documents will reset your trust score to zero</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="security">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security Settings</CardTitle>
+                  <CardDescription>
+                    Manage your security settings and authentication preferences
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Security settings will be available in a future update.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="notifications">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Preferences</CardTitle>
+                  <CardDescription>
+                    Configure how and when you receive notifications
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Notification settings will be available in a future update.
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
