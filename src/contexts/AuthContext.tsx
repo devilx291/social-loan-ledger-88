@@ -50,7 +50,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           id: result.user.id,
           name,
           phoneNumber: email, // Using email instead of phone
-          trustScore: 50 // Default trust score for new users
+          trustScore: 50, // Default trust score for new users
+          createdAt: new Date().toISOString() // Adding the missing createdAt property
         };
         
         setUser(userData);
